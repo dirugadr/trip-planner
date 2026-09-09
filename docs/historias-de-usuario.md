@@ -304,12 +304,22 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - `GOOGLE_CLIENT_ID_TP` y `ALLOWED_EMAILS_TP` DEBEN venir de config, nunca hardcodeados.
 - `.env.example` DEBE documentar `GOOGLE_CLIENT_ID_TP`, `ALLOWED_EMAILS_TP`, `JWT_SECRET_TP`.
 
-### Fuera de alcance de esta iteración (hardening general) 🔜
+### Hardening general ✅
 
-- **HU-7.8** — Rate limiting en `/api/auth/login`.
-- **HU-7.9** — Security headers (helmet) y CORS restringido al dominio de Vercel.
-- **HU-7.10** — Límite de tamaño de request y `npm audit` en CI.
-- **HU-7.11** — Revocación inmediata (allowlist en cada request) o sesiones server-side.
+- **HU-7.8 ✅** — Rate limiting: 20 req/15 min en `/api/auth/login`, 300 req/min
+  en el resto de `/api` (store en memoria — best-effort en serverless).
+- **HU-7.9 ✅** — `helmet()` en la API; headers de seguridad + CSP en el sitio
+  estático vía `vercel.json` (`X-Frame-Options: DENY`, HSTS, `nosniff`,
+  `Referrer-Policy`, CSP que habilita GIS de Google). CORS ya restringido a un
+  origen (no wildcard); en Vercel front y API comparten origen.
+- **HU-7.10 ✅** — `express.json({ limit: '100kb' })`; workflow de CI
+  (`.github/workflows/ci.yml`) que buildea y corre `npm audit --omit=dev
+  --audit-level=high` en back y front. De paso: `uuid` reemplazado por
+  `crypto.randomUUID()` (una dependencia menos), Express 4 → 5 y `npm audit fix`
+  → 0 vulnerabilidades de producción.
+- **HU-7.11 ✅** — `requireAuth` revalida la allowlist en cada request: sacar un
+  correo de `ALLOWED_EMAILS_TP` corta el acceso al próximo request (no hay que
+  esperar a que expire el token).
 
 ---
 

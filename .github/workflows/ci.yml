@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend deps
+        run: npm ci
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      # Production dependencies only — dev tooling (vite/vitest/esbuild) advisories
+      # don't ship in the built output.
+      - name: Audit backend (prod deps)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit frontend (prod deps)
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend

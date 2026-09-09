@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { insertOne, updateOne, deleteOne, findById, dbAll } from '../db/database.js';
 
 const TABLE = 'accommodations';
@@ -8,7 +8,7 @@ export class Accommodation {
   static async create(data) {
     const now = new Date().toISOString();
     const row = {
-      id: uuidv4(),
+      id: randomUUID(),
       trip_id: data.trip_id,
       name: data.name,
       check_in: data.check_in,

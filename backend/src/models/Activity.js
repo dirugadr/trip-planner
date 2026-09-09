@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { insertOne, updateOne, deleteOne, findById, dbGet, dbRun, dbAll } from '../db/database.js';
 
 const TABLE = 'activities';
@@ -12,7 +12,7 @@ export class Activity {
     );
 
     const activity = {
-      id: uuidv4(),
+      id: randomUUID(),
       day_id: data.day_id,
       title: data.title,
       description: data.description || null,

@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { insertOne, updateOne, deleteOne, findById, dbGet, dbAll, dbBatch } from '../db/database.js';
 
 const TABLE = 'days';
@@ -6,7 +6,7 @@ const TABLE = 'days';
 export class Day {
   static async create(data) {
     const day = {
-      id: uuidv4(),
+      id: randomUUID(),
       trip_id: data.trip_id,
       day_number: data.day_number,
       date: data.date,
@@ -110,7 +110,7 @@ export class Day {
         sql: `INSERT INTO ${TABLE}
               (id, trip_id, day_number, date, title, notes, created_at, updated_at, deleted_at, version)
               VALUES (?, ?, ?, ?, NULL, NULL, ?, ?, NULL, 1)`,
-        args: [uuidv4(), tripId, -1 - i, date, stamp, stamp],
+        args: [randomUUID(), tripId, -1 - i, date, stamp, stamp],
       });
     });
 

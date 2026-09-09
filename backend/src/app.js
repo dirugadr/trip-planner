@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import config from './config/index.js';
 import authRouter from './api/auth.js';
 import { requireAuth } from './middleware/requireAuth.js';
@@ -13,17 +15,40 @@ import accommodationsRouter from './api/accommodations.js';
 
 const app = express();
 
+// Behind Vercel's proxy — trust the first hop (for req.ip / rate limiting).
+app.set('trust proxy', 1);
+
 // ============================================
 // Middleware
 // ============================================
+app.use(helmet());
 app.use(cors(config.cors));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 // Request logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
   next();
 });
+
+// Rate limiting. In-memory store: best-effort on serverless (resets per cold
+// start, not shared across instances) but still blunts bursts from one client.
+const apiLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Demasiadas solicitudes, probá en un minuto' }
+});
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Demasiados intentos de acceso, probá más tarde' }
+});
+app.use('/api', apiLimiter);
+app.use('/api/auth/login', loginLimiter);
 
 // ============================================
 // Health check

@@ -6,7 +6,7 @@ Aplicación web + mobile para planificar viajes, gestionar itinerarios, presupue
 
 - **Backend:** Node.js + Express
 - **Frontend:** React + Vite
-- **Database:** SQLite (local-first, offline-ready)
+- **Database:** SQLite / libSQL — archivo local en dev, [Turso](https://turso.tech) en producción
 - **Maps:** Leaflet
 - **Mobile:** React Native (futuro)
 
@@ -14,65 +14,63 @@ Aplicación web + mobile para planificar viajes, gestionar itinerarios, presupue
 
 ```
 trip-planner/
-├── backend/         # Express API + SQLite
-├── frontend/        # React app (web)
+├── api/             # Entry point serverless de Vercel (re-exporta la app Express)
+├── backend/src/     # API Express + acceso a datos (libSQL)
+├── frontend/        # React app (web, Vite)
 ├── docs/            # Documentación
-└── README.md
+├── package.json     # Deps del backend + scripts del monorepo
+└── vercel.json      # Build del frontend + rewrites
 ```
 
-## Primeros pasos
-
-### Backend
+## Primeros pasos (local)
 
 ```bash
-cd backend
-npm install
-npm run migrate     # Crear BD y tablas
-npm run seed        # Datos iniciales (opcional)
-npm run dev         # Servidor en puerto 3000
+npm install            # deps del backend (raíz)
+npm run migrate        # crea las tablas en ./trip-planner.db
+npm run dev            # API en http://localhost:3000
+
+# en otra terminal
+npm run frontend:dev   # Vite en http://localhost:5173 (proxy /api -> :3000)
 ```
 
-### Frontend
+Sin variables `TURSO_*`, el backend usa un archivo SQLite local (`trip-planner.db`
+en la raíz). No hace falta nada más para desarrollar. Ver `.env.example`.
+
+## Deploy — todo en Vercel
+
+Frontend y API se sirven desde **un solo proyecto de Vercel**. La base de datos
+es Turso (Vercel no tiene disco persistente).
+
+### 1. Crear la base en Turso
 
 ```bash
-cd frontend
-npm install
-npm run dev         # Vite dev server en puerto 5173
+# instalar la CLI: https://docs.turso.tech/cli/installation
+turso auth signup
+turso db create trip-planner
+turso db show trip-planner --url        # -> TURSO_DATABASE_URL
+turso db tokens create trip-planner     # -> TURSO_AUTH_TOKEN
 ```
 
-## Deploy
-
-### Frontend — Vercel
-
-El frontend se despliega en Vercel con integración Git.
-
-1. **Importar el repo** en [vercel.com/new](https://vercel.com/new).
-2. **Root Directory:** `frontend` (Settings → General, o en la pantalla de import).
-   Vercel detecta Vite y usa `npm run build` → `dist` automáticamente.
-3. **Conexión con el backend:** `frontend/vercel.json` reescribe `/api/*` hacia
-   Railway. Reemplazá `REPLACE_WITH_RAILWAY_URL` por el dominio real del backend
-   (sin `https://` duplicado ni barra final), commiteá y Vercel redeploya.
-   Así el browser ve todo como mismo-origen y no hace falta configurar CORS.
-4. SPA routing (react-router) ya queda resuelto por el rewrite a `/index.html`.
-
-Con el proxy, las llamadas al backend salen desde el servidor de Vercel, así que
-no hay preflight de CORS en el browser y `CORS_ORIGIN` en Railway es indiferente.
-
-Alternativa sin proxy: setear `VITE_API_URL` en las env vars de Vercel con la URL
-del backend y `CORS_ORIGIN` en Railway con la URL exacta de Vercel
-(ver `frontend/.env.example`).
-
-### Backend — Railway
+### 2. Correr las migraciones contra Turso (una vez)
 
 ```bash
-# Variables de entorno en Railway
-NODE_ENV=production
-# PORT lo inyecta Railway y el server ya lo respeta
-# CORS_ORIGIN sólo hace falta si el frontend pega directo (sin el proxy de vercel.json)
+# PowerShell
+$env:TURSO_DATABASE_URL="libsql://trip-planner-xxx.turso.io"
+$env:TURSO_AUTH_TOKEN="..."
+npm run migrate
 ```
 
-> Nota: la BD SQLite vive en el filesystem efímero de Railway — se reinicia en
-> cada deploy. Para persistencia real hace falta un volumen o migrar a Postgres.
+### 3. Importar el repo en Vercel
+
+1. [vercel.com/new](https://vercel.com/new) → importar `dirugadr/trip-planner`.
+2. **Root Directory:** raíz del repo (dejar como está). `vercel.json` ya define
+   el build (`npm run build` → `frontend/dist`) y detecta `api/` como función.
+3. **Environment Variables:** agregar `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`
+   y `NODE_ENV=production`.
+4. Deploy.
+
+`vercel.json` reescribe `/api/*` a la función Express y todo lo demás al SPA;
+como frontend y API comparten origen no hay nada que configurar de CORS.
 
 ## Documentación
 

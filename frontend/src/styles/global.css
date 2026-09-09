@@ -289,6 +289,26 @@ h3 {
 .activity-done {
   opacity: 0.6;
 }
+.activity-tentative .activity-time,
+.activity-tentative .activity-body {
+  font-style: italic;
+}
+.tentative-tag {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.checkbox-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.checkbox-field input {
+  margin-top: 0.15rem;
+}
 .activity-actions {
   display: flex;
   gap: 0.4rem;

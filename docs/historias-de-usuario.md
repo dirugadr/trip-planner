@@ -97,6 +97,14 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - El sistema DEBE renumerar los días por orden de fecha.
 - CUANDO se acorta el rango, el sistema NO DEBE borrar días que tengan actividades (para no perder datos); los días vacíos fuera de rango se eliminan (borrado lógico).
 
+### HU-1.13 — Actividades tentativas ✅
+**Como** viajero, **quiero** marcar una actividad como "tentativa", **para** planificar el día sin comprometerme.
+
+- Cada actividad PUEDE marcarse como `tentative` (checkbox en el formulario).
+- El sistema DEBE mostrar las actividades tentativas de forma distinta (itálica + "· tentativa").
+- Una actividad tentativa NO cuenta para la detección de conflictos de horario
+  (ni bloquea, ni es bloqueada).
+
 ---
 
 ## Épica 2 — Mapa y POIs

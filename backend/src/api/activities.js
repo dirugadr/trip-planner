@@ -6,7 +6,7 @@ const router = express.Router();
 // POST /api/activities - Create activity
 router.post('/', async (req, res) => {
   try {
-    const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, url } = req.body;
+    const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, url, tentative } = req.body;
 
     if (!day_id || !title) {
       return res.status(400).json({
@@ -15,8 +15,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Check for time conflicts
-    if (start_time && duration_minutes) {
+    // Tentative plans don't need to be conflict-free
+    if (!tentative && start_time && duration_minutes) {
       const hasConflict = await Activity.checkTimeConflict(day_id, start_time, duration_minutes);
       if (hasConflict) {
         return res.status(400).json({
@@ -36,7 +36,8 @@ router.post('/', async (req, res) => {
       location_name,
       latitude,
       longitude,
-      url
+      url,
+      tentative
     });
 
     res.status(201).json({
@@ -93,8 +94,11 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Check for time conflicts if time/duration changed
-    if (req.body.start_time && req.body.duration_minutes) {
+    if ('tentative' in req.body) req.body.tentative = req.body.tentative ? 1 : 0;
+    const isTentative = 'tentative' in req.body ? req.body.tentative : activity.tentative;
+
+    // Tentative plans don't need to be conflict-free
+    if (!isTentative && req.body.start_time && req.body.duration_minutes) {
       const hasConflict = await Activity.checkTimeConflict(
         activity.day_id,
         req.body.start_time,

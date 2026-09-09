@@ -23,6 +23,7 @@ export class Activity {
       longitude: data.longitude || null,
       url: data.url || null,
       completed: data.completed ? 1 : 0,
+      tentative: data.tentative ? 1 : 0,
       sort_order: data.sort_order ?? (maxRow?.m ?? 0) + 1,
       accommodation_id: data.accommodation_id || null,
       accommodation_role: data.accommodation_role || null,
@@ -114,11 +115,12 @@ export class Activity {
     const activityStart = startHour * 60 + startMin;
     const activityEnd = activityStart + durationMinutes;
 
-    // Check for overlaps, ignoring the activity being edited
+    // Check for overlaps, ignoring the activity being edited and tentative plans
     const conflicts = await dbAll(
       `SELECT * FROM ${TABLE}
        WHERE day_id = ?
        AND deleted_at IS NULL
+       AND tentative = 0
        AND start_time IS NOT NULL
        AND duration_minutes IS NOT NULL
        ${excludeId ? 'AND id != ?' : ''}`,

@@ -205,7 +205,9 @@ export default function TripDetailPage() {
             <div style={{ marginTop: '0.5rem' }}>
               {day.activities.map((activity, idx) => (
                 <div
-                  className={`activity${activity.completed ? ' activity-done' : ''}`}
+                  className={`activity${activity.completed ? ' activity-done' : ''}${
+                    activity.tentative ? ' activity-tentative' : ''
+                  }`}
                   key={activity.id}
                 >
                   <input
@@ -221,6 +223,9 @@ export default function TripDetailPage() {
                     <div className="activity-title">
                       {activity.accommodation_id && '🏨 '}
                       {activity.title}
+                      {activity.tentative ? (
+                        <span className="tentative-tag"> · tentativa</span>
+                      ) : null}
                     </div>
                     {activity.accommodation_id && (
                       <div className="muted">Generada por el alojamiento</div>

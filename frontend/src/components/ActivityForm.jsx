@@ -7,6 +7,7 @@ const empty = {
   duration_minutes: '',
   location_name: '',
   url: '',
+  tentative: false,
 };
 
 export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submitLabel = 'Guardar' }) {
@@ -16,6 +17,7 @@ export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submi
   const [saving, setSaving] = useState(false);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setChecked = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.checked }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +37,7 @@ export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submi
       duration_minutes: form.duration_minutes === '' ? null : Number(form.duration_minutes),
       location_name: form.location_name.trim() || null,
       url: form.url.trim() || null,
+      tentative: form.tentative ? 1 : 0,
     };
 
     setSaving(true);
@@ -93,6 +96,11 @@ export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submi
         <input id="af-url" type="url" value={form.url} onChange={set('url')} placeholder="https://…" />
       </div>
 
+      <label className="checkbox-field">
+        <input type="checkbox" checked={form.tentative} onChange={setChecked('tentative')} />
+        <span>Tentativa — plan sin confirmar (no cuenta para los conflictos de horario)</span>
+      </label>
+
       <div className="row-between" style={{ marginTop: '1.25rem', justifyContent: 'flex-end' }}>
         <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
           Cancelar
@@ -114,5 +122,6 @@ function pickFields(activity) {
     duration_minutes: activity.duration_minutes ?? '',
     location_name: activity.location_name ?? '',
     url: activity.url ?? '',
+    tentative: !!activity.tentative,
   };
 }

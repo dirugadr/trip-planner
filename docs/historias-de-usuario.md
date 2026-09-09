@@ -292,9 +292,9 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 ### HU-7.7 — No arrancar inseguro 🔜
 **Como** dueño, **quiero** que la app se niegue a correr mal configurada, **para** no exponerme por un descuido.
 
-- En producción, el sistema DEBE requerir `JWT_SECRET` y negarse a arrancar con el valor de ejemplo.
-- `GOOGLE_CLIENT_ID` y `ALLOWED_EMAILS` DEBEN venir de config, nunca hardcodeados.
-- `.env.example` DEBE documentar `GOOGLE_CLIENT_ID`, `ALLOWED_EMAILS`, `JWT_SECRET`.
+- En producción, el sistema DEBE requerir `JWT_SECRET_TP` y negarse a autenticar con el valor de ejemplo (responde 503).
+- `GOOGLE_CLIENT_ID_TP` y `ALLOWED_EMAILS_TP` DEBEN venir de config, nunca hardcodeados.
+- `.env.example` DEBE documentar `GOOGLE_CLIENT_ID_TP`, `ALLOWED_EMAILS_TP`, `JWT_SECRET_TP`.
 
 ### Fuera de alcance de esta iteración (hardening general) 🔜
 
@@ -302,3 +302,62 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - **HU-7.9** — Security headers (helmet) y CORS restringido al dominio de Vercel.
 - **HU-7.10** — Límite de tamaño de request y `npm audit` en CI.
 - **HU-7.11** — Revocación inmediata (allowlist en cada request) o sesiones server-side.
+
+---
+
+## Épica 8 — Alojamientos
+
+> Registrar dónde se duerme en cada viaje. CRUD de alojamientos, cada uno con
+> su rango de estadía; el pago se anota como un gasto vinculado (Épica 3). Los
+> días del itinerario muestran una etiqueta con la ciudad correspondiente,
+> calculada a partir de las fechas de entrada/salida.
+
+**Decisiones de diseño**
+
+- Tabla nueva `accommodations` (1 viaje → N alojamientos, borrado lógico).
+- `check_in` / `check_out` se guardan como fecha + hora (`YYYY-MM-DDTHH:MM`).
+- El pago es una sección opcional dentro del formulario del alojamiento
+  (monto + categoría de presupuesto + método de pago). Al guardar, crea /
+  actualiza un `expenses` con `accommodation_id` apuntando al alojamiento;
+  la moneda hereda la del viaje y la fecha del gasto = fecha de check-in.
+- Eliminar un alojamiento hace borrado lógico del alojamiento **y** de su
+  gasto vinculado.
+- La ciudad de un día = la de todo alojamiento cuyo rango `[check_in, check_out]`
+  (por fecha) contiene ese día. Normalmente una; en un día de transición
+  (se deja uno y se entra en otro) son dos.
+
+### HU-8.1 — Alta de alojamiento 🔜
+**Como** viajero, **quiero** cargar un alojamiento con sus datos, **para** tener todo junto.
+
+- El sistema DEBE pedir como obligatorios: nombre, fecha y hora de entrada,
+  fecha y hora de salida, dirección y ciudad.
+- El sistema DEBE permitir opcionalmente: teléfono, email, link a la plataforma
+  donde se contrató.
+- CUANDO la salida no es posterior a la entrada, el sistema DEBE rechazar con
+  un error claro.
+
+### HU-8.2 — Listar / editar / eliminar alojamientos 🔜
+**Como** viajero, **quiero** ver y mantener los alojamientos del viaje, **para** que reflejen la realidad.
+
+- El sistema DEBE listar los alojamientos del viaje ordenados por fecha de entrada.
+- El sistema DEBE permitir editar todos los campos y eliminar (borrado lógico, con confirmación).
+
+### HU-8.3 — Registrar el pago del alojamiento 🔜
+**Como** viajero, **quiero** anotar cuánto pagué por un alojamiento, **para** que impacte en el presupuesto.
+
+- El formulario del alojamiento DEBE tener una sección "Pago" opcional: monto,
+  categoría de presupuesto y método de pago.
+- CUANDO se completa el monto, el sistema DEBE crear/actualizar un gasto
+  vinculado (`accommodation_id`), con moneda del viaje y fecha = check-in.
+- CUANDO se borra el monto, el sistema DEBE borrar (lógico) el gasto vinculado.
+- AL eliminar el alojamiento, el sistema DEBE borrar (lógico) su gasto vinculado.
+- El gasto vinculado DEBE aparecer en la vista de Presupuesto como cualquier otro.
+
+### HU-8.4 — Etiqueta de ciudad en los días 🔜
+**Como** viajero, **quiero** ver en cada día del itinerario en qué ciudad estoy, **para** entender de un vistazo cómo se mueve el viaje.
+
+- El sistema DEBE mostrar, en la tarjeta de cada día, la ciudad del alojamiento
+  cuyo rango de fechas contiene ese día.
+- CUANDO un día está cubierto por dos alojamientos (se deja uno y se entra en
+  otro), el sistema DEBE mostrar ambas ciudades (ej. "Kioto → Osaka").
+- CUANDO ningún alojamiento cubre el día, la tarjeta NO muestra etiqueta de ciudad.

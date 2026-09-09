@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDatabase, insertOne, updateOne, deleteOne, findById } from '../db/database.js';
+import { insertOne, updateOne, deleteOne, findById, dbGet, dbAll } from '../db/database.js';
 
 const TABLE = 'days';
 
 export class Day {
-  static create(data) {
+  static async create(data) {
     const day = {
       id: uuidv4(),
       trip_id: data.trip_id,
@@ -18,7 +18,7 @@ export class Day {
       version: 1
     };
 
-    insertOne(TABLE, day);
+    await insertOne(TABLE, day);
     return day;
   }
 
@@ -27,20 +27,18 @@ export class Day {
   }
 
   static findByTripId(tripId) {
-    const db = getDatabase();
     const sql = `SELECT * FROM ${TABLE} WHERE trip_id = ? AND deleted_at IS NULL ORDER BY day_number ASC`;
-    const stmt = db.prepare(sql);
-    return stmt.all(tripId);
+    return dbAll(sql, [tripId]);
   }
 
-  static update(id, data) {
+  static async update(id, data) {
     const updates = {
       ...data,
       updated_at: new Date().toISOString(),
       version: (data.version || 0) + 1
     };
 
-    const success = updateOne(TABLE, id, updates);
+    const success = await updateOne(TABLE, id, updates);
     if (success) {
       return Day.findById(id);
     }
@@ -52,18 +50,16 @@ export class Day {
   }
 
   static getActivities(dayId) {
-    const db = getDatabase();
     const sql = `SELECT * FROM activities WHERE day_id = ? AND deleted_at IS NULL ORDER BY start_time ASC`;
-    const stmt = db.prepare(sql);
-    return stmt.all(dayId);
+    return dbAll(sql, [dayId]);
   }
 
-  static getTotalDuration(dayId) {
-    const db = getDatabase();
-    const result = db.prepare(
-      `SELECT SUM(duration_minutes) as total FROM activities 
-       WHERE day_id = ? AND deleted_at IS NULL`
-    ).get(dayId);
+  static async getTotalDuration(dayId) {
+    const result = await dbGet(
+      `SELECT SUM(duration_minutes) as total FROM activities
+       WHERE day_id = ? AND deleted_at IS NULL`,
+      [dayId]
+    );
     return result?.total || 0;
   }
 }

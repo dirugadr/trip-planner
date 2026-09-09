@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDatabase, insertOne, updateOne, deleteOne, findById, findAll } from '../db/database.js';
+import { insertOne, updateOne, deleteOne, findById, findAll, dbGet } from '../db/database.js';
 
 const TABLE = 'trips';
 
 export class Trip {
-  static create(data) {
+  static async create(data) {
     const trip = {
       id: uuidv4(),
       name: data.name,
@@ -20,7 +20,7 @@ export class Trip {
       version: 1
     };
 
-    insertOne(TABLE, trip);
+    await insertOne(TABLE, trip);
     return trip;
   }
 
@@ -32,14 +32,14 @@ export class Trip {
     return findAll(TABLE);
   }
 
-  static update(id, data) {
+  static async update(id, data) {
     const updates = {
       ...data,
       updated_at: new Date().toISOString(),
       version: (data.version || 0) + 1
     };
 
-    const success = updateOne(TABLE, id, updates);
+    const success = await updateOne(TABLE, id, updates);
     if (success) {
       return Trip.findById(id);
     }
@@ -50,27 +50,28 @@ export class Trip {
     return deleteOne(TABLE, id, soft);
   }
 
-  static getStats(tripId) {
-    const db = getDatabase();
-    
+  static async getStats(tripId) {
     // Count activities
-    const activitiesCount = db.prepare(
-      `SELECT COUNT(*) as count FROM activities 
-       WHERE day_id IN (SELECT id FROM days WHERE trip_id = ?) 
-       AND deleted_at IS NULL`
-    ).get(tripId);
+    const activitiesCount = await dbGet(
+      `SELECT COUNT(*) as count FROM activities
+       WHERE day_id IN (SELECT id FROM days WHERE trip_id = ?)
+       AND deleted_at IS NULL`,
+      [tripId]
+    );
 
     // Count POIs
-    const poisCount = db.prepare(
-      `SELECT COUNT(*) as count FROM pois_saved 
-       WHERE trip_id = ? AND deleted_at IS NULL`
-    ).get(tripId);
+    const poisCount = await dbGet(
+      `SELECT COUNT(*) as count FROM pois_saved
+       WHERE trip_id = ? AND deleted_at IS NULL`,
+      [tripId]
+    );
 
     // Sum expenses
-    const expensesTotal = db.prepare(
-      `SELECT SUM(amount) as total FROM expenses 
-       WHERE trip_id = ? AND deleted_at IS NULL`
-    ).get(tripId);
+    const expensesTotal = await dbGet(
+      `SELECT SUM(amount) as total FROM expenses
+       WHERE trip_id = ? AND deleted_at IS NULL`,
+      [tripId]
+    );
 
     return {
       activities: activitiesCount?.count || 0,

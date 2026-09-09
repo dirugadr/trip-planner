@@ -11,10 +11,10 @@ async function main() {
     console.log('🚀 Starting database migration...\n');
 
     // Initialize database connection
-    initDatabase();
+    await initDatabase();
 
     // Run migrations
-    runMigrations();
+    await runMigrations();
 
     console.log('\n✅ Database migration completed successfully!');
     console.log('\nNext steps:');
@@ -26,7 +26,7 @@ async function main() {
     console.error(error.message);
     process.exit(1);
   } finally {
-    closeDatabase();
+    await closeDatabase();
   }
 }
 

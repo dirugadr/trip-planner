@@ -59,7 +59,7 @@ export function runMigrations() {
 
   return new Promise((resolve, reject) => {
     // Read and execute schema migration
-    const schemaPath = path.join(__dirname, '../migrations/001_initial_schema.sql');
+    const schemaPath = path.join(__dirname, '001_initial_schema.sql');
     const schemaSql = fs.readFileSync(schemaPath, 'utf-8');
 
     db.exec(schemaSql, (err) => {
@@ -69,7 +69,7 @@ export function runMigrations() {
         console.log('✓ Schema migration executed');
 
         // Read and execute seed data
-        const seedPath = path.join(__dirname, '../migrations/002_seed_data.sql');
+        const seedPath = path.join(__dirname, '002_seed_data.sql');
         const seedSql = fs.readFileSync(seedPath, 'utf-8');
 
         db.exec(seedSql, (err) => {
@@ -83,6 +83,100 @@ export function runMigrations() {
       }
     });
   });
+}
+
+// ============================================
+// Promisified low-level helpers
+// ============================================
+
+export function dbRun(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    getDatabase().run(sql, params, function (err) {
+      if (err) reject(err);
+      // `this` carries lastID / changes for INSERT/UPDATE/DELETE
+      else resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+export function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    getDatabase().get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+export function dbAll(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    getDatabase().all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+}
+
+// ============================================
+// Helper functions for common operations
+// ============================================
+
+export async function insertOne(table, data) {
+  const columns = Object.keys(data);
+  const placeholders = columns.map(() => '?').join(', ');
+  const values = Object.values(data);
+
+  const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
+
+  try {
+    const result = await dbRun(sql, values);
+    return result.lastID;
+  } catch (error) {
+    console.error(`Error inserting into ${table}:`, error.message);
+    throw error;
+  }
+}
+
+export async function updateOne(table, id, data) {
+  const columns = Object.keys(data);
+  const updates = columns.map((col) => `${col} = ?`).join(', ');
+  const values = [...Object.values(data), id];
+
+  const sql = `UPDATE ${table} SET ${updates} WHERE id = ?`;
+
+  try {
+    const result = await dbRun(sql, values);
+    return result.changes > 0;
+  } catch (error) {
+    console.error(`Error updating ${table}:`, error.message);
+    throw error;
+  }
+}
+
+export async function deleteOne(table, id, soft = false) {
+  const sql = soft
+    ? `UPDATE ${table} SET deleted_at = datetime('now') WHERE id = ?`
+    : `DELETE FROM ${table} WHERE id = ?`;
+
+  const result = await dbRun(sql, [id]);
+  return result.changes > 0;
+}
+
+export async function findById(table, id) {
+  const sql = `SELECT * FROM ${table} WHERE id = ? AND deleted_at IS NULL`;
+  return dbGet(sql, [id]);
+}
+
+export async function findAll(table, filter = {}) {
+  let sql = `SELECT * FROM ${table} WHERE deleted_at IS NULL`;
+  const values = [];
+
+  Object.entries(filter).forEach(([key, value]) => {
+    sql += ` AND ${key} = ?`;
+    values.push(value);
+  });
+
+  return dbAll(sql, values);
 }
 
 export default { initDatabase, getDatabase, closeDatabase, runMigrations };

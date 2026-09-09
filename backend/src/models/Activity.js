@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDatabase, insertOne, updateOne, deleteOne, findById } from '../db/database.js';
+import { insertOne, updateOne, deleteOne, findById, dbAll } from '../db/database.js';
 
 const TABLE = 'activities';
 
 export class Activity {
-  static create(data) {
+  static async create(data) {
     const activity = {
       id: uuidv4(),
       day_id: data.day_id,
@@ -23,7 +23,7 @@ export class Activity {
       version: 1
     };
 
-    insertOne(TABLE, activity);
+    await insertOne(TABLE, activity);
     return activity;
   }
 
@@ -32,20 +32,18 @@ export class Activity {
   }
 
   static findByDayId(dayId) {
-    const db = getDatabase();
     const sql = `SELECT * FROM ${TABLE} WHERE day_id = ? AND deleted_at IS NULL ORDER BY start_time ASC`;
-    const stmt = db.prepare(sql);
-    return stmt.all(dayId);
+    return dbAll(sql, [dayId]);
   }
 
-  static update(id, data) {
+  static async update(id, data) {
     const updates = {
       ...data,
       updated_at: new Date().toISOString(),
       version: (data.version || 0) + 1
     };
 
-    const success = updateOne(TABLE, id, updates);
+    const success = await updateOne(TABLE, id, updates);
     if (success) {
       return Activity.findById(id);
     }
@@ -56,26 +54,25 @@ export class Activity {
     return deleteOne(TABLE, id, soft);
   }
 
-  static checkTimeConflict(dayId, startTime, durationMinutes) {
+  static async checkTimeConflict(dayId, startTime, durationMinutes) {
     if (!startTime || !durationMinutes) return false;
 
-    const db = getDatabase();
-    
     // Parse time to minutes
     const [startHour, startMin] = startTime.split(':').map(Number);
     const activityStart = startHour * 60 + startMin;
     const activityEnd = activityStart + durationMinutes;
 
     // Check for overlaps
-    const conflicts = db.prepare(`
-      SELECT * FROM ${TABLE}
-      WHERE day_id = ? 
-      AND deleted_at IS NULL
-      AND start_time IS NOT NULL
-      AND duration_minutes IS NOT NULL
-    `).all(dayId);
+    const conflicts = await dbAll(
+      `SELECT * FROM ${TABLE}
+       WHERE day_id = ?
+       AND deleted_at IS NULL
+       AND start_time IS NOT NULL
+       AND duration_minutes IS NOT NULL`,
+      [dayId]
+    );
 
-    return conflicts.some(activity => {
+    return conflicts.some((activity) => {
       const [h, m] = activity.start_time.split(':').map(Number);
       const otherStart = h * 60 + m;
       const otherEnd = otherStart + activity.duration_minutes;
@@ -86,15 +83,13 @@ export class Activity {
   }
 
   static getAssociatedPois(activityId) {
-    const db = getDatabase();
     const sql = `
       SELECT ps.* FROM pois_saved ps
       JOIN activity_pois ap ON ps.id = ap.poi_id
       WHERE ap.activity_id = ?
       ORDER BY ap.sequence_order ASC
     `;
-    const stmt = db.prepare(sql);
-    return stmt.all(activityId);
+    return dbAll(sql, [activityId]);
   }
 }
 

@@ -5,9 +5,9 @@ import Day from '../models/Day.js';
 const router = express.Router();
 
 // GET /api/trips - List all trips
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const trips = Trip.findAll();
+    const trips = await Trip.findAll();
     res.json({
       success: true,
       data: trips
@@ -21,7 +21,7 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/trips - Create a new trip
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, description, start_date, end_date, currency_code, total_budget, timezone } = req.body;
 
@@ -40,7 +40,7 @@ router.post('/', (req, res) => {
       });
     }
 
-    const trip = Trip.create({
+    const trip = await Trip.create({
       name,
       description,
       start_date,
@@ -58,8 +58,8 @@ router.post('/', (req, res) => {
     for (let i = 0; i < numDays; i++) {
       const dayDate = new Date(startDate);
       dayDate.setDate(dayDate.getDate() + i);
-      
-      Day.create({
+
+      await Day.create({
         trip_id: trip.id,
         day_number: i + 1,
         date: dayDate.toISOString().split('T')[0]
@@ -79,10 +79,10 @@ router.post('/', (req, res) => {
 });
 
 // GET /api/trips/:id - Get trip details with days and activities
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const trip = Trip.findById(req.params.id);
-    
+    const trip = await Trip.findById(req.params.id);
+
     if (!trip) {
       return res.status(404).json({
         success: false,
@@ -91,14 +91,17 @@ router.get('/:id', (req, res) => {
     }
 
     // Get days and activities
-    const days = Day.findByTripId(trip.id).map(day => ({
-      ...day,
-      activities: Day.getActivities(day.id),
-      totalDuration: Day.getTotalDuration(day.id)
-    }));
+    const tripDays = await Day.findByTripId(trip.id);
+    const days = await Promise.all(
+      tripDays.map(async (day) => ({
+        ...day,
+        activities: await Day.getActivities(day.id),
+        totalDuration: await Day.getTotalDuration(day.id)
+      }))
+    );
 
     // Get stats
-    const stats = Trip.getStats(trip.id);
+    const stats = await Trip.getStats(trip.id);
 
     res.json({
       success: true,
@@ -117,10 +120,10 @@ router.get('/:id', (req, res) => {
 });
 
 // PUT /api/trips/:id - Update trip
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const trip = Trip.findById(req.params.id);
-    
+    const trip = await Trip.findById(req.params.id);
+
     if (!trip) {
       return res.status(404).json({
         success: false,
@@ -128,8 +131,8 @@ router.put('/:id', (req, res) => {
       });
     }
 
-    const updated = Trip.update(req.params.id, req.body);
-    
+    const updated = await Trip.update(req.params.id, req.body);
+
     if (!updated) {
       return res.status(500).json({
         success: false,
@@ -150,10 +153,10 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/trips/:id - Delete trip (soft delete)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const trip = Trip.findById(req.params.id);
-    
+    const trip = await Trip.findById(req.params.id);
+
     if (!trip) {
       return res.status(404).json({
         success: false,
@@ -161,7 +164,7 @@ router.delete('/:id', (req, res) => {
       });
     }
 
-    Trip.delete(req.params.id, true); // soft delete
+    await Trip.delete(req.params.id, true); // soft delete
 
     res.json({
       success: true,

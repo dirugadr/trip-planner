@@ -66,8 +66,8 @@ async function start() {
 
     // Initialize database
     console.log('📦 Initializing database...');
-    initDatabase();
-    runMigrations();
+    await initDatabase();
+    await runMigrations();
 
     // Start server
     const server = app.listen(config.port, config.host, () => {

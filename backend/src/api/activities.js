@@ -4,7 +4,7 @@ import Activity from '../models/Activity.js';
 const router = express.Router();
 
 // POST /api/activities - Create activity
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, url } = req.body;
 
@@ -17,7 +17,7 @@ router.post('/', (req, res) => {
 
     // Check for time conflicts
     if (start_time && duration_minutes) {
-      const hasConflict = Activity.checkTimeConflict(day_id, start_time, duration_minutes);
+      const hasConflict = await Activity.checkTimeConflict(day_id, start_time, duration_minutes);
       if (hasConflict) {
         return res.status(400).json({
           success: false,
@@ -27,7 +27,7 @@ router.post('/', (req, res) => {
       }
     }
 
-    const activity = Activity.create({
+    const activity = await Activity.create({
       day_id,
       title,
       description,
@@ -52,10 +52,10 @@ router.post('/', (req, res) => {
 });
 
 // GET /api/activities/:id - Get activity details
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const activity = Activity.findById(req.params.id);
-    
+    const activity = await Activity.findById(req.params.id);
+
     if (!activity) {
       return res.status(404).json({
         success: false,
@@ -64,7 +64,7 @@ router.get('/:id', (req, res) => {
     }
 
     // Get associated POIs
-    const pois = Activity.getAssociatedPois(activity.id);
+    const pois = await Activity.getAssociatedPois(activity.id);
 
     res.json({
       success: true,
@@ -82,10 +82,10 @@ router.get('/:id', (req, res) => {
 });
 
 // PUT /api/activities/:id - Update activity
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const activity = Activity.findById(req.params.id);
-    
+    const activity = await Activity.findById(req.params.id);
+
     if (!activity) {
       return res.status(404).json({
         success: false,
@@ -95,7 +95,7 @@ router.put('/:id', (req, res) => {
 
     // Check for time conflicts if time/duration changed
     if (req.body.start_time && req.body.duration_minutes) {
-      const hasConflict = Activity.checkTimeConflict(
+      const hasConflict = await Activity.checkTimeConflict(
         activity.day_id,
         req.body.start_time,
         req.body.duration_minutes
@@ -109,8 +109,8 @@ router.put('/:id', (req, res) => {
       }
     }
 
-    const updated = Activity.update(req.params.id, req.body);
-    
+    const updated = await Activity.update(req.params.id, req.body);
+
     if (!updated) {
       return res.status(500).json({
         success: false,
@@ -131,10 +131,10 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/activities/:id - Delete activity
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const activity = Activity.findById(req.params.id);
-    
+    const activity = await Activity.findById(req.params.id);
+
     if (!activity) {
       return res.status(404).json({
         success: false,
@@ -142,7 +142,7 @@ router.delete('/:id', (req, res) => {
       });
     }
 
-    Activity.delete(req.params.id, true); // soft delete
+    await Activity.delete(req.params.id, true); // soft delete
 
     res.json({
       success: true,

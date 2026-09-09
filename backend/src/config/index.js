@@ -11,22 +11,24 @@ dotenv.config({
   override: false
 });
 
+// App-specific vars are namespaced with a _TP suffix (shared Vercel account).
+// Platform standards (NODE_ENV, PORT, HOST) keep their conventional names.
 const env = process.env.NODE_ENV || 'development';
 const DEFAULT_JWT_SECRET = 'change-me-in-production';
 
 // JWT secret: required in production, ephemeral-with-warning in dev.
-let jwtSecret = process.env.JWT_SECRET || '';
+let jwtSecret = process.env.JWT_SECRET_TP || '';
 let jwtInsecure = false;
 if (!jwtSecret || jwtSecret === DEFAULT_JWT_SECRET) {
   if (env === 'production') {
     jwtInsecure = true; // auth endpoints will 503 until a real secret is set
   } else {
     jwtSecret = crypto.randomBytes(32).toString('hex');
-    console.warn('⚠ JWT_SECRET no configurado — usando un secreto efímero (solo dev).');
+    console.warn('⚠ JWT_SECRET_TP no configurado — usando un secreto efímero (solo dev).');
   }
 }
 
-const allowedEmails = (process.env.ALLOWED_EMAILS || '')
+const allowedEmails = (process.env.ALLOWED_EMAILS_TP || '')
   .split(',')
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
@@ -37,17 +39,17 @@ export const config = {
   host: process.env.HOST || 'localhost',
 
   db: {
-    path: process.env.DB_PATH || path.join(__dirname, '../../trip-planner.db')
+    path: process.env.DB_PATH_TP || path.join(__dirname, '../../trip-planner.db')
   },
 
   jwt: {
     secret: jwtSecret,
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN_TP || '7d',
     insecure: jwtInsecure
   },
 
   google: {
-    clientId: process.env.GOOGLE_CLIENT_ID || ''
+    clientId: process.env.GOOGLE_CLIENT_ID_TP || ''
   },
 
   auth: {
@@ -55,12 +57,12 @@ export const config = {
   },
 
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN_TP || 'http://localhost:5173',
     credentials: true
   },
 
   logging: {
-    level: process.env.LOG_LEVEL || 'debug'
+    level: process.env.LOG_LEVEL_TP || 'debug'
   }
 };
 
@@ -69,8 +71,8 @@ export const config = {
  * Used to fail closed (503) instead of running an insecure gate.
  */
 export function authConfigError() {
-  if (config.jwt.insecure) return 'Auth mal configurada: falta JWT_SECRET en el servidor.';
-  if (!config.google.clientId) return 'Auth mal configurada: falta GOOGLE_CLIENT_ID en el servidor.';
+  if (config.jwt.insecure) return 'Auth mal configurada: falta JWT_SECRET_TP en el servidor.';
+  if (!config.google.clientId) return 'Auth mal configurada: falta GOOGLE_CLIENT_ID_TP en el servidor.';
   return null;
 }
 

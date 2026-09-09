@@ -43,30 +43,53 @@ es Turso (Vercel no tiene disco persistente).
 
 ### 1. Crear la base en Turso
 
+Las variables de entorno propias de la app llevan sufijo **`_TP`** (esta cuenta
+de Vercel aloja varios proyectos). Las estándar de plataforma (`NODE_ENV`,
+`PORT`, `HOST`) mantienen su nombre.
+
 ```bash
 # instalar la CLI: https://docs.turso.tech/cli/installation
 turso auth signup
 turso db create trip-planner
-turso db show trip-planner --url        # -> TURSO_DATABASE_URL
-turso db tokens create trip-planner     # -> TURSO_AUTH_TOKEN
+turso db show trip-planner --url        # -> TURSO_DATABASE_URL_TP
+turso db tokens create trip-planner     # -> TURSO_AUTH_TOKEN_TP
 ```
 
-### 2. Correr las migraciones contra Turso (una vez)
+### 2. Correr las migraciones contra Turso (una vez, y de nuevo cada vez que se agrega una migración)
 
 ```bash
 # PowerShell
-$env:TURSO_DATABASE_URL="libsql://trip-planner-xxx.turso.io"
-$env:TURSO_AUTH_TOKEN="..."
+$env:TURSO_DATABASE_URL_TP="libsql://trip-planner-xxx.turso.io"
+$env:TURSO_AUTH_TOKEN_TP="..."
 npm run migrate
 ```
 
-### 3. Importar el repo en Vercel
+### 3. Configurar Google OAuth
+
+En [console.cloud.google.com](https://console.cloud.google.com) → *APIs & Services
+→ Credentials → OAuth client ID* (tipo **Web application**). En *Authorized
+JavaScript origins* poné `http://localhost:5173` y el dominio de Vercel. Copiá el
+**Client ID** (no hace falta el client secret — el flujo de GIS no lo usa).
+
+### 4. Importar el repo en Vercel
 
 1. [vercel.com/new](https://vercel.com/new) → importar `dirugadr/trip-planner`.
 2. **Root Directory:** raíz del repo (dejar como está). `vercel.json` ya define
    el build (`npm run build` → `frontend/dist`) y detecta `api/` como función.
-3. **Environment Variables:** agregar `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`
-   y `NODE_ENV=production`.
+3. **Environment Variables:**
+
+   | Variable | Valor |
+   |---|---|
+   | `TURSO_DATABASE_URL_TP` | `libsql://…turso.io` |
+   | `TURSO_AUTH_TOKEN_TP` | token de Turso |
+   | `GOOGLE_CLIENT_ID_TP` | Client ID de Google |
+   | `VITE_GOOGLE_CLIENT_ID_TP` | mismo Client ID (lo usa el build del frontend) |
+   | `ALLOWED_EMAILS_TP` | correos habilitados, separados por coma |
+   | `JWT_SECRET_TP` | `openssl rand -hex 32` |
+   | `NODE_ENV` | `production` |
+
+   Sin `JWT_SECRET_TP` / `GOOGLE_CLIENT_ID_TP` la API responde 503 a propósito
+   (fail-closed): no sirve datos sin auth.
 4. Deploy.
 
 `vercel.json` reescribe `/api/*` a la función Express y todo lo demás al SPA;

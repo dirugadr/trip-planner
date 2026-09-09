@@ -12,9 +12,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * - Local dev: no env vars -> a plain SQLite file in the repo root.
  */
 function resolveConfig() {
-  const url = process.env.TURSO_DATABASE_URL;
+  const url = process.env.TURSO_DATABASE_URL_TP;
   if (url) {
-    return { url, authToken: process.env.TURSO_AUTH_TOKEN };
+    return { url, authToken: process.env.TURSO_AUTH_TOKEN_TP };
   }
   const localPath = path.join(__dirname, '../../../trip-planner.db');
   return { url: `file:${localPath}` };

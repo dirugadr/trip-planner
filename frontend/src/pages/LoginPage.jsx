@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID_TP;
 
 export default function LoginPage() {
   const { status, login } = useAuth();
@@ -38,7 +38,7 @@ export default function LoginPage() {
 
         {!CLIENT_ID ? (
           <div className="alert alert-warning">
-            Falta configurar <code>VITE_GOOGLE_CLIENT_ID</code>.
+            Falta configurar <code>VITE_GOOGLE_CLIENT_ID_TP</code>.
           </div>
         ) : busy ? (
           <p className="muted">Verificando…</p>

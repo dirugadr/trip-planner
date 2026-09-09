@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import config from './config/index.js';
+import authRouter from './api/auth.js';
+import { requireAuth } from './middleware/requireAuth.js';
 import tripsRouter from './api/trips.js';
 import daysRouter from './api/days.js';
 import activitiesRouter from './api/activities.js';
@@ -39,6 +41,12 @@ app.get('/api/health', (req, res) => {
 // ============================================
 // API Routes
 // ============================================
+// Public: login + session check
+app.use('/api/auth', authRouter);
+
+// Everything else under /api requires a valid session
+app.use('/api', requireAuth);
+
 app.use('/api/trips', tripsRouter);
 app.use('/api/days', daysRouter);
 app.use('/api/activities', activitiesRouter);

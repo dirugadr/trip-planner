@@ -9,6 +9,50 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// ── Session token ────────────────────────────────────────────────
+const TOKEN_KEY = 'tp_token';
+
+export function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* private mode / storage disabled — session just won't persist */
+  }
+}
+
+let onUnauthorized = null;
+/** Register a callback fired whenever the API returns 401 (session gone). */
+export function setOnUnauthorized(fn) {
+  onUnauthorized = fn;
+}
+
+client.interceptors.request.use((cfg) => {
+  const token = getToken();
+  if (token) cfg.headers.Authorization = `Bearer ${token}`;
+  return cfg;
+});
+
+client.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401) {
+      setToken(null);
+      if (onUnauthorized) onUnauthorized();
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ── Response envelope ────────────────────────────────────────────
 /**
  * The backend wraps every response as { success, data, error, message }.
  * Unwrap it here so callers work with plain data and thrown Errors.

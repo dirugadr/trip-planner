@@ -1,4 +1,5 @@
 const dateFmt = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' });
+const weekdayFmt = new Intl.DateTimeFormat('es', { weekday: 'short' });
 const dateTimeFmt = new Intl.DateTimeFormat('es', {
   day: 'numeric',
   month: 'short',
@@ -11,6 +12,15 @@ export function formatDate(value) {
   if (!value) return '';
   const d = new Date(value.length <= 10 ? `${value}T00:00:00` : value);
   return Number.isNaN(d.getTime()) ? value : dateFmt.format(d);
+}
+
+/** "Dom 6 jun 2027" — 3-letter weekday + date, for day headings. */
+export function formatDayHeading(value) {
+  if (!value) return '';
+  const d = new Date(value.length <= 10 ? `${value}T00:00:00` : value);
+  if (Number.isNaN(d.getTime())) return value;
+  const wd = weekdayFmt.format(d).replace('.', '');
+  return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${dateFmt.format(d)}`;
 }
 
 export function formatDateTime(value) {

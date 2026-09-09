@@ -10,7 +10,7 @@ import {
   deleteActivity,
   moveActivity,
 } from '../services/activities.js';
-import { formatDate, formatDateRange, formatDuration, formatMoney } from '../utils/format.js';
+import { formatDayHeading, formatDateRange, formatDuration, formatMoney } from '../utils/format.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
@@ -163,7 +163,7 @@ export default function TripDetailPage() {
         <div className="card day-card" key={day.id}>
           <div className="row-between">
             <h3>
-              Día {day.day_number} · {formatDate(day.date)}
+              {formatDayHeading(day.date)}
               {day.title && <span> — {day.title}</span>}
               {day.totalDuration > 0 && (
                 <span className="muted" style={{ fontWeight: 400 }}>
@@ -284,7 +284,7 @@ export default function TripDetailPage() {
 
       {dayModal && (
         <Modal
-          title={`Día ${dayModal.day_number} · ${formatDate(dayModal.date)}`}
+          title={`Editar día — ${formatDayHeading(dayModal.date)}`}
           onClose={() => setDayModal(null)}
         >
           <DayForm initial={dayModal} onSubmit={handleUpdateDay} onCancel={() => setDayModal(null)} />

@@ -74,9 +74,8 @@ como frontend y API comparten origen no hay nada que configurar de CORS.
 
 ## Documentación
 
-- `spec.md` — Especificación de requisitos (EARS)
-- `modelo-datos.md` — Diseño de base de datos
-- `docs/` — Documentos adicionales
+- [`docs/historias-de-usuario.md`](docs/historias-de-usuario.md) — Backlog por épica, con criterios de aceptación (EARS)
+- `backend/src/db/001_initial_schema.sql` — Modelo de datos
 
 ## Épicas
 

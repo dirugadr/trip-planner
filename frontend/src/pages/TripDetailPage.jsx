@@ -3,12 +3,19 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAsync } from '../hooks/useAsync.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { getTrip, updateTrip, deleteTrip } from '../services/trips.js';
-import { createActivity, updateActivity, deleteActivity } from '../services/activities.js';
+import { updateDay } from '../services/days.js';
+import {
+  createActivity,
+  updateActivity,
+  deleteActivity,
+  moveActivity,
+} from '../services/activities.js';
 import { formatDate, formatDateRange, formatDuration, formatMoney } from '../utils/format.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
 import TripForm from '../components/TripForm.jsx';
+import DayForm from '../components/DayForm.jsx';
 import ActivityForm from '../components/ActivityForm.jsx';
 
 export default function TripDetailPage() {
@@ -17,9 +24,21 @@ export default function TripDetailPage() {
   const { data: trip, loading, error, reload } = useAsync(() => getTrip(id), [id]);
 
   const [editingTrip, setEditingTrip] = useState(false);
+  const [dayModal, setDayModal] = useState(null); // day being edited
   const [activityModal, setActivityModal] = useState(null); // { dayId, activity? }
   const [actionError, setActionError] = useState(null);
+  const [busyActivityId, setBusyActivityId] = useState(null);
   const [confirmNode, confirm] = useConfirm();
+
+  const run = async (fn) => {
+    setActionError(null);
+    try {
+      await fn();
+      reload();
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
 
   const handleUpdateTrip = async (payload) => {
     await updateTrip(id, payload);
@@ -41,6 +60,12 @@ export default function TripDetailPage() {
     }
   };
 
+  const handleUpdateDay = async (payload) => {
+    await updateDay(dayModal.id, payload);
+    setDayModal(null);
+    reload();
+  };
+
   const handleActivitySubmit = async (payload) => {
     if (activityModal.activity) {
       await updateActivity(activityModal.activity.id, payload);
@@ -57,14 +82,28 @@ export default function TripDetailPage() {
       message: `¿Eliminar la actividad "${activity.title}"?`,
     });
     if (!ok) return;
-    setActionError(null);
-    try {
-      await deleteActivity(activity.id);
-      reload();
-    } catch (err) {
-      setActionError(err.message);
-    }
+    run(() => deleteActivity(activity.id));
   };
+
+  const handleToggleComplete = (activity) =>
+    run(async () => {
+      setBusyActivityId(activity.id);
+      try {
+        await updateActivity(activity.id, { completed: activity.completed ? 0 : 1 });
+      } finally {
+        setBusyActivityId(null);
+      }
+    });
+
+  const handleMove = (activity, direction) =>
+    run(async () => {
+      setBusyActivityId(activity.id);
+      try {
+        await moveActivity(activity.id, direction);
+      } finally {
+        setBusyActivityId(null);
+      }
+    });
 
   if (loading) return <Spinner />;
   if (error) return <ErrorMessage error={error} onRetry={reload} />;
@@ -119,20 +158,32 @@ export default function TripDetailPage() {
           <div className="row-between">
             <h3>
               Día {day.day_number} · {formatDate(day.date)}
+              {day.title && <span> — {day.title}</span>}
               {day.totalDuration > 0 && (
                 <span className="muted" style={{ fontWeight: 400 }}>
                   {' '}
-                  — {formatDuration(day.totalDuration)}
+                  · {formatDuration(day.totalDuration)}
                 </span>
               )}
             </h3>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => setActivityModal({ dayId: day.id })}
-            >
-              + Actividad
-            </button>
+            <div className="activity-actions">
+              <button className="btn btn-secondary btn-sm" onClick={() => setDayModal(day)}>
+                Editar día
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setActivityModal({ dayId: day.id })}
+              >
+                + Actividad
+              </button>
+            </div>
           </div>
+
+          {day.notes && (
+            <p className="muted" style={{ margin: '0.25rem 0 0', whiteSpace: 'pre-wrap' }}>
+              {day.notes}
+            </p>
+          )}
 
           {day.activities.length === 0 ? (
             <p className="muted" style={{ margin: '0.5rem 0 0' }}>
@@ -140,17 +191,26 @@ export default function TripDetailPage() {
             </p>
           ) : (
             <div style={{ marginTop: '0.5rem' }}>
-              {day.activities.map((activity) => (
-                <div className="activity" key={activity.id}>
+              {day.activities.map((activity, idx) => (
+                <div
+                  className={`activity${activity.completed ? ' activity-done' : ''}`}
+                  key={activity.id}
+                >
+                  <input
+                    type="checkbox"
+                    className="activity-check"
+                    checked={!!activity.completed}
+                    disabled={busyActivityId === activity.id}
+                    onChange={() => handleToggleComplete(activity)}
+                    aria-label={activity.completed ? 'Marcar como pendiente' : 'Marcar como hecha'}
+                  />
                   <div className="activity-time">{activity.start_time || '—'}</div>
                   <div className="activity-body">
-                    <div style={{ fontWeight: 600 }}>{activity.title}</div>
+                    <div className="activity-title">{activity.title}</div>
                     {activity.description && <div className="muted">{activity.description}</div>}
-                    <div className="stack-sm">
-                      {activity.location_name && (
-                        <span className="muted">📍 {activity.location_name}</span>
-                      )}
-                    </div>
+                    {activity.location_name && (
+                      <div className="muted">📍 {activity.location_name}</div>
+                    )}
                     <div className="muted">
                       {activity.duration_minutes ? formatDuration(activity.duration_minutes) : ''}
                       {activity.url && (
@@ -164,6 +224,24 @@ export default function TripDetailPage() {
                     </div>
                   </div>
                   <div className="activity-actions">
+                    <button
+                      className="btn btn-secondary btn-sm btn-icon"
+                      disabled={idx === 0 || busyActivityId === activity.id}
+                      onClick={() => handleMove(activity, 'up')}
+                      aria-label="Subir"
+                      title="Subir"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm btn-icon"
+                      disabled={idx === day.activities.length - 1 || busyActivityId === activity.id}
+                      onClick={() => handleMove(activity, 'down')}
+                      aria-label="Bajar"
+                      title="Bajar"
+                    >
+                      ↓
+                    </button>
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => setActivityModal({ dayId: day.id, activity })}
@@ -188,11 +266,16 @@ export default function TripDetailPage() {
 
       {editingTrip && (
         <Modal title="Editar viaje" onClose={() => setEditingTrip(false)}>
-          <TripForm
-            initial={trip}
-            onSubmit={handleUpdateTrip}
-            onCancel={() => setEditingTrip(false)}
-          />
+          <TripForm initial={trip} onSubmit={handleUpdateTrip} onCancel={() => setEditingTrip(false)} />
+        </Modal>
+      )}
+
+      {dayModal && (
+        <Modal
+          title={`Día ${dayModal.day_number} · ${formatDate(dayModal.date)}`}
+          onClose={() => setDayModal(null)}
+        >
+          <DayForm initial={dayModal} onSubmit={handleUpdateDay} onCancel={() => setDayModal(null)} />
         </Modal>
       )}
 

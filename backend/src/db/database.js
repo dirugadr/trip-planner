@@ -48,13 +48,29 @@ export async function closeDatabase() {
 export async function runMigrations() {
   const c = getClient();
 
-  const schemaSql = fs.readFileSync(path.join(__dirname, '001_initial_schema.sql'), 'utf-8');
-  await c.executeMultiple(schemaSql);
-  console.log('✓ Schema migration executed');
+  await c.execute(
+    `CREATE TABLE IF NOT EXISTS _migrations (
+       name TEXT PRIMARY KEY,
+       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+     )`
+  );
 
-  const seedSql = fs.readFileSync(path.join(__dirname, '002_seed_data.sql'), 'utf-8');
-  await c.executeMultiple(seedSql);
-  console.log('✓ Seed data loaded');
+  const files = fs
+    .readdirSync(__dirname)
+    .filter((f) => /^\d+.*\.sql$/.test(f))
+    .sort();
+
+  const applied = new Set(
+    (await c.execute('SELECT name FROM _migrations')).rows.map((r) => r.name)
+  );
+
+  for (const file of files) {
+    if (applied.has(file)) continue;
+    const sql = fs.readFileSync(path.join(__dirname, file), 'utf-8');
+    await c.executeMultiple(sql);
+    await c.execute({ sql: 'INSERT INTO _migrations (name) VALUES (?)', args: [file] });
+    console.log(`✓ Migration applied: ${file}`);
+  }
 }
 
 // ============================================
@@ -83,6 +99,12 @@ export async function dbGet(sql, params = []) {
 export async function dbAll(sql, params = []) {
   const rs = await getClient().execute({ sql, args: params });
   return rs.rows.map((row) => rowToObject(row, rs.columns));
+}
+
+/** Run several writes in one round-trip / transaction. `stmts`: [{ sql, args }]. */
+export async function dbBatch(stmts) {
+  if (stmts.length === 0) return;
+  await getClient().batch(stmts, 'write');
 }
 
 // ============================================

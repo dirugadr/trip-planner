@@ -157,4 +157,23 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/activities/:id/move - Reorder within the day ({ direction: 'up' | 'down' })
+router.post('/:id/move', async (req, res) => {
+  try {
+    const { direction } = req.body;
+    if (direction !== 'up' && direction !== 'down') {
+      return res.status(400).json({ success: false, error: "direction must be 'up' or 'down'" });
+    }
+
+    const moved = await Activity.move(req.params.id, direction);
+    if (!moved) {
+      return res.status(404).json({ success: false, error: 'Activity not found' });
+    }
+
+    res.json({ success: true, data: moved });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

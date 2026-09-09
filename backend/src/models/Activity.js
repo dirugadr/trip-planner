@@ -1,10 +1,16 @@
 import { v4 as uuidv4 } from 'uuid';
-import { insertOne, updateOne, deleteOne, findById, dbAll } from '../db/database.js';
+import { insertOne, updateOne, deleteOne, findById, dbGet, dbRun, dbAll } from '../db/database.js';
 
 const TABLE = 'activities';
+const ORDER = 'ORDER BY sort_order ASC, start_time ASC';
 
 export class Activity {
   static async create(data) {
+    const maxRow = await dbGet(
+      `SELECT MAX(sort_order) AS m FROM ${TABLE} WHERE day_id = ?`,
+      [data.day_id]
+    );
+
     const activity = {
       id: uuidv4(),
       day_id: data.day_id,
@@ -16,7 +22,8 @@ export class Activity {
       latitude: data.latitude || null,
       longitude: data.longitude || null,
       url: data.url || null,
-      completed: data.completed || 0,
+      completed: data.completed ? 1 : 0,
+      sort_order: (maxRow?.m ?? 0) + 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       deleted_at: null,
@@ -32,8 +39,7 @@ export class Activity {
   }
 
   static findByDayId(dayId) {
-    const sql = `SELECT * FROM ${TABLE} WHERE day_id = ? AND deleted_at IS NULL ORDER BY start_time ASC`;
-    return dbAll(sql, [dayId]);
+    return dbAll(`SELECT * FROM ${TABLE} WHERE day_id = ? AND deleted_at IS NULL ${ORDER}`, [dayId]);
   }
 
   static async update(id, data) {
@@ -52,6 +58,32 @@ export class Activity {
 
   static delete(id, soft = true) {
     return deleteOne(TABLE, id, soft);
+  }
+
+  /**
+   * Swap an activity with its neighbour in the day's ordered list.
+   * `direction` is 'up' or 'down'. No-op at the edges.
+   */
+  static async move(id, direction) {
+    const activity = await findById(TABLE, id);
+    if (!activity) return null;
+
+    const siblings = await dbAll(
+      `SELECT id, sort_order FROM ${TABLE} WHERE day_id = ? AND deleted_at IS NULL ${ORDER}`,
+      [activity.day_id]
+    );
+
+    const idx = siblings.findIndex((s) => s.id === id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= siblings.length) return activity;
+
+    const a = siblings[idx];
+    const b = siblings[swapIdx];
+    const stamp = new Date().toISOString();
+    await dbRun(`UPDATE ${TABLE} SET sort_order = ?, updated_at = ? WHERE id = ?`, [b.sort_order, stamp, a.id]);
+    await dbRun(`UPDATE ${TABLE} SET sort_order = ?, updated_at = ? WHERE id = ?`, [a.sort_order, stamp, b.id]);
+
+    return findById(TABLE, id);
   }
 
   static async checkTimeConflict(dayId, startTime, durationMinutes, excludeId = null) {

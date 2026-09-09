@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import config from './config/index.js';
 import tripsRouter from './api/trips.js';
+import daysRouter from './api/days.js';
 import activitiesRouter from './api/activities.js';
 
 const app = express();
@@ -36,6 +37,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 // ============================================
 app.use('/api/trips', tripsRouter);
+app.use('/api/days', daysRouter);
 app.use('/api/activities', activitiesRouter);
 
 // ============================================

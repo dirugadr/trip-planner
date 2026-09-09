@@ -131,6 +131,15 @@ router.put('/:id', async (req, res) => {
       });
     }
 
+    const nextStart = req.body.start_date || trip.start_date;
+    const nextEnd = req.body.end_date || trip.end_date;
+    if (new Date(nextEnd) <= new Date(nextStart)) {
+      return res.status(400).json({
+        success: false,
+        error: 'end_date must be after start_date'
+      });
+    }
+
     const updated = await Trip.update(req.params.id, req.body);
 
     if (!updated) {
@@ -138,6 +147,13 @@ router.put('/:id', async (req, res) => {
         success: false,
         error: 'Failed to update trip'
       });
+    }
+
+    // Keep the days in sync when the date range changed (HU-1.12)
+    const datesChanged =
+      nextStart !== trip.start_date || nextEnd !== trip.end_date;
+    if (datesChanged) {
+      await Day.syncToRange(updated.id, updated.start_date, updated.end_date);
     }
 
     res.json({

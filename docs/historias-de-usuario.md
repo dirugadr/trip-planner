@@ -42,11 +42,11 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - El sistema DEBE mostrar la duración total de actividades por día.
 - El sistema DEBE mostrar un resumen: cantidad de días, actividades y (si hay) presupuesto y gasto acumulado.
 
-### HU-1.4 — Editar un viaje 🟡
+### HU-1.4 — Editar un viaje ✅
 **Como** viajero, **quiero** editar nombre, fechas, descripción y presupuesto, **para** ajustar el plan.
 
-- El sistema DEBE validar las fechas igual que en la creación.
-- 🔜 CUANDO cambia el rango de fechas, el sistema DEBE crear los días faltantes y renumerar. *(ver HU-1.12)*
+- El sistema DEBE validar las fechas igual que en la creación (también en edición).
+- CUANDO cambia el rango de fechas, el sistema DEBE ajustar los días. *(ver HU-1.12)*
 
 ### HU-1.5 — Eliminar un viaje ✅
 **Como** viajero, **quiero** eliminar un viaje, **para** sacar los que ya no necesito.
@@ -72,30 +72,30 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - CUANDO una actividad con hora y duración se solapa con otra del mismo día, el sistema DEBE avisar y no guardar.
 - AL editar una actividad, el sistema NO DEBE considerarla en conflicto consigo misma.
 
-### HU-1.9 — Editar título y notas de un día 🔜
+### HU-1.9 — Editar título y notas de un día ✅
 **Como** viajero, **quiero** poner un título y notas a cada día (ej. "Día de museos"), **para** organizar mejor.
 
-- El sistema DEBE permitir editar `title` y `notes` de un día.
+- El sistema DEBE permitir editar `title` y `notes` de un día (`PUT /api/days/:id`).
 - El sistema NO DEBE permitir cambiar la fecha ni el número de día manualmente.
 
-### HU-1.10 — Reordenar actividades dentro de un día 🔜
+### HU-1.10 — Reordenar actividades dentro de un día ✅
 **Como** viajero, **quiero** cambiar el orden de las actividades de un día, **para** ordenarlas cuando no tienen hora fija.
 
-- El sistema DEBE permitir subir o bajar una actividad en la lista de su día.
-- El orden manual DEBE persistir y usarse como criterio de orden (junto con la hora).
+- El sistema DEBE permitir subir o bajar una actividad en la lista de su día (botones ↑/↓).
+- El orden manual (`sort_order`) DEBE persistir y usarse como criterio de orden (junto con la hora).
 
-### HU-1.11 — Marcar una actividad como hecha 🔜
+### HU-1.11 — Marcar una actividad como hecha ✅
 **Como** viajero, **quiero** tildar actividades completadas, **para** seguir el progreso durante el viaje.
 
-- El sistema DEBE permitir alternar el estado `completed` de una actividad.
-- El sistema DEBE distinguir visualmente las actividades completadas.
+- El sistema DEBE permitir alternar el estado `completed` de una actividad (checkbox).
+- El sistema DEBE distinguir visualmente las actividades completadas (tachado + atenuado).
 
-### HU-1.12 — Regenerar días al cambiar las fechas 🔜
+### HU-1.12 — Regenerar días al cambiar las fechas ✅
 **Como** viajero, **quiero** que al extender el viaje aparezcan los días nuevos, **para** no crearlos a mano.
 
 - CUANDO se extiende el rango, el sistema DEBE crear los días de las fechas nuevas.
 - El sistema DEBE renumerar los días por orden de fecha.
-- CUANDO se acorta el rango, el sistema NO DEBE borrar días que tengan actividades (para no perder datos); los días vacíos fuera de rango PUEDEN eliminarse.
+- CUANDO se acorta el rango, el sistema NO DEBE borrar días que tengan actividades (para no perder datos); los días vacíos fuera de rango se eliminan (borrado lógico).
 
 ---
 

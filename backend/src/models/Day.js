@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { insertOne, updateOne, deleteOne, findById, dbGet, dbAll } from '../db/database.js';
+import { insertOne, updateOne, deleteOne, findById, dbGet, dbAll, dbBatch } from '../db/database.js';
 
 const TABLE = 'days';
 
@@ -50,7 +50,7 @@ export class Day {
   }
 
   static getActivities(dayId) {
-    const sql = `SELECT * FROM activities WHERE day_id = ? AND deleted_at IS NULL ORDER BY start_time ASC`;
+    const sql = `SELECT * FROM activities WHERE day_id = ? AND deleted_at IS NULL ORDER BY sort_order ASC, start_time ASC`;
     return dbAll(sql, [dayId]);
   }
 
@@ -61,6 +61,93 @@ export class Day {
       [dayId]
     );
     return result?.total || 0;
+  }
+
+  /**
+   * Make the trip's days cover exactly [startDate, endDate]:
+   * create days for any missing date, then renumber all days by date.
+   * Days that fall outside the new range are kept (they may hold activities).
+   */
+  static async syncToRange(tripId, startDate, endDate) {
+    const existing = await dbAll(
+      `SELECT date FROM ${TABLE} WHERE trip_id = ? AND deleted_at IS NULL`,
+      [tripId]
+    );
+    const have = new Set(existing.map((d) => d.date));
+
+    const inRange = new Set();
+    const missing = [];
+    for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
+      const date = d.toISOString().split('T')[0];
+      inRange.add(date);
+      if (!have.has(date)) missing.push(date);
+    }
+
+    // Days that fell out of the new range are dropped only if empty — a day with
+    // activities is kept so the user doesn't lose work.
+    const emptyDays = await dbAll(
+      `SELECT d.id, d.date FROM ${TABLE} d
+       WHERE d.trip_id = ? AND d.deleted_at IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM activities a WHERE a.day_id = d.id AND a.deleted_at IS NULL
+       )`,
+      [tripId]
+    );
+    const toDrop = emptyDays.filter((d) => !inRange.has(d.date));
+
+    if (missing.length === 0 && toDrop.length === 0) {
+      await Day.renumber(tripId);
+      return;
+    }
+
+    const stamp = new Date().toISOString();
+    const writes = [];
+
+    // Negative placeholder day_numbers so new rows never collide with existing
+    // ones (or with the offsets renumber() uses).
+    missing.forEach((date, i) => {
+      writes.push({
+        sql: `INSERT INTO ${TABLE}
+              (id, trip_id, day_number, date, title, notes, created_at, updated_at, deleted_at, version)
+              VALUES (?, ?, ?, ?, NULL, NULL, ?, ?, NULL, 1)`,
+        args: [uuidv4(), tripId, -1 - i, date, stamp, stamp],
+      });
+    });
+
+    // Soft-delete AND vacate the day_number slot — UNIQUE(trip_id, day_number)
+    // still applies to soft-deleted rows, so renumber() would collide otherwise.
+    toDrop.forEach((day) => {
+      writes.push({
+        sql: `UPDATE ${TABLE} SET deleted_at = ?, day_number = -2000000 - ABS(day_number) WHERE id = ?`,
+        args: [stamp, day.id],
+      });
+    });
+
+    await dbBatch(writes);
+    await Day.renumber(tripId);
+  }
+
+  /** Renumber the trip's days 1..N in date order (one batched transaction). */
+  static async renumber(tripId) {
+    const days = await dbAll(
+      `SELECT id FROM ${TABLE} WHERE trip_id = ? AND deleted_at IS NULL ORDER BY date ASC`,
+      [tripId]
+    );
+    if (days.length === 0) return;
+
+    const stamp = new Date().toISOString();
+    await dbBatch([
+      // Map every row to a distinct negative value first (linear => injective),
+      // so the final 1..N assignments never trip UNIQUE(trip_id, day_number).
+      {
+        sql: `UPDATE ${TABLE} SET day_number = day_number * -1 - 1000000 WHERE trip_id = ? AND deleted_at IS NULL`,
+        args: [tripId],
+      },
+      ...days.map((d, i) => ({
+        sql: `UPDATE ${TABLE} SET day_number = ?, updated_at = ? WHERE id = ?`,
+        args: [i + 1, stamp, d.id],
+      })),
+    ]);
   }
 }
 

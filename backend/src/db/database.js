@@ -1,124 +1,92 @@
-import sqlite3 from 'sqlite3';
+import { createClient } from '@libsql/client';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import '../config/index.js'; // loads backend/.env into process.env
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, '../../../trip-planner.db');
 
-// Ensure directory exists
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-let db = null;
-
-export function initDatabase() {
-  return new Promise((resolve, reject) => {
-    db = new sqlite3.Database(dbPath, (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        // Enable foreign keys
-        db.run('PRAGMA foreign_keys = ON', (err) => {
-          if (err) reject(err);
-          else {
-            console.log(`✓ Database initialized at: ${dbPath}`);
-            resolve(db);
-          }
-        });
-      }
-    });
-  });
-}
-
-export function getDatabase() {
-  if (!db) {
-    throw new Error('Database not initialized. Call initDatabase() first.');
+/**
+ * Connection config.
+ * - Production (Vercel): TURSO_DATABASE_URL + TURSO_AUTH_TOKEN point at Turso.
+ * - Local dev: no env vars -> a plain SQLite file in the repo root.
+ */
+function resolveConfig() {
+  const url = process.env.TURSO_DATABASE_URL;
+  if (url) {
+    return { url, authToken: process.env.TURSO_AUTH_TOKEN };
   }
-  return db;
+  const localPath = path.join(__dirname, '../../../trip-planner.db');
+  return { url: `file:${localPath}` };
 }
 
-export function closeDatabase() {
-  return new Promise((resolve) => {
-    if (db) {
-      db.close(() => {
-        db = null;
-        console.log('✓ Database connection closed');
-        resolve();
-      });
-    } else {
-      resolve();
-    }
-  });
+let client = null;
+
+export function getClient() {
+  if (!client) {
+    client = createClient(resolveConfig());
+  }
+  return client;
 }
 
-export function runMigrations() {
-  const db = getDatabase();
+// Legacy alias — some code still calls getDatabase()
+export const getDatabase = getClient;
 
-  return new Promise((resolve, reject) => {
-    // Read and execute schema migration
-    const schemaPath = path.join(__dirname, '001_initial_schema.sql');
-    const schemaSql = fs.readFileSync(schemaPath, 'utf-8');
+export async function initDatabase() {
+  // libSQL connects lazily; instantiating here surfaces config errors early.
+  getClient();
+}
 
-    db.exec(schemaSql, (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        console.log('✓ Schema migration executed');
+export async function closeDatabase() {
+  if (client) {
+    client.close();
+    client = null;
+    console.log('✓ Database connection closed');
+  }
+}
 
-        // Read and execute seed data
-        const seedPath = path.join(__dirname, '002_seed_data.sql');
-        const seedSql = fs.readFileSync(seedPath, 'utf-8');
+export async function runMigrations() {
+  const c = getClient();
 
-        db.exec(seedSql, (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            console.log('✓ Seed data loaded');
-            resolve();
-          }
-        });
-      }
-    });
-  });
+  const schemaSql = fs.readFileSync(path.join(__dirname, '001_initial_schema.sql'), 'utf-8');
+  await c.executeMultiple(schemaSql);
+  console.log('✓ Schema migration executed');
+
+  const seedSql = fs.readFileSync(path.join(__dirname, '002_seed_data.sql'), 'utf-8');
+  await c.executeMultiple(seedSql);
+  console.log('✓ Seed data loaded');
 }
 
 // ============================================
-// Promisified low-level helpers
+// Low-level query helpers
 // ============================================
 
-export function dbRun(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    getDatabase().run(sql, params, function (err) {
-      if (err) reject(err);
-      // `this` carries lastID / changes for INSERT/UPDATE/DELETE
-      else resolve({ lastID: this.lastID, changes: this.changes });
-    });
-  });
+function rowToObject(row, columns) {
+  const obj = {};
+  for (const col of columns) obj[col] = row[col];
+  return obj;
 }
 
-export function dbGet(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    getDatabase().get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+export async function dbRun(sql, params = []) {
+  const rs = await getClient().execute({ sql, args: params });
+  return {
+    lastID: rs.lastInsertRowid != null ? Number(rs.lastInsertRowid) : undefined,
+    changes: rs.rowsAffected,
+  };
 }
 
-export function dbAll(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    getDatabase().all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+export async function dbGet(sql, params = []) {
+  const rs = await getClient().execute({ sql, args: params });
+  return rs.rows.length ? rowToObject(rs.rows[0], rs.columns) : undefined;
+}
+
+export async function dbAll(sql, params = []) {
+  const rs = await getClient().execute({ sql, args: params });
+  return rs.rows.map((row) => rowToObject(row, rs.columns));
 }
 
 // ============================================
-// Helper functions for common operations
+// Common CRUD helpers
 // ============================================
 
 export async function insertOne(table, data) {
@@ -179,4 +147,4 @@ export async function findAll(table, filter = {}) {
   return dbAll(sql, values);
 }
 
-export default { initDatabase, getDatabase, closeDatabase, runMigrations };
+export default { initDatabase, getClient, getDatabase, closeDatabase, runMigrations };

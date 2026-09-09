@@ -4,8 +4,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Repo-root .env for local dev; on Vercel/Turso the vars come from the platform.
 dotenv.config({
-  path: path.join(__dirname, '../../.env'),
+  path: path.join(__dirname, '../../../.env'),
   override: false
 });
 

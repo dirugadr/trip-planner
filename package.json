@@ -1,0 +1,23 @@
+{
+  "name": "trip-planner",
+  "version": "0.0.3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch backend/src/index.js",
+    "start": "node backend/src/index.js",
+    "migrate": "node backend/src/db/migrate.js",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "frontend:dev": "npm --prefix frontend run dev"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.49.0"
+  }
+}

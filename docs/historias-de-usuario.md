@@ -142,31 +142,32 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 > Controlar cuánto se planea gastar y cuánto se gastó, por categoría.
 > Tablas ya existentes: `budget_categories`, `expenses`. `trips` ya tiene `total_budget` y `currency_code`.
 
-### HU-3.1 — Presupuesto total del viaje 🟡
+### HU-3.1 — Presupuesto total del viaje ✅
 **Como** viajero, **quiero** fijar un presupuesto total y la moneda, **para** tener una referencia.
 
-- ✅ El sistema permite definir `total_budget` y `currency_code` al crear/editar el viaje.
-- 🔜 El sistema DEBE mostrar el gasto acumulado contra el presupuesto total.
+- El sistema permite definir `total_budget` y `currency_code` al crear/editar el viaje.
+- El sistema DEBE mostrar el gasto acumulado contra el presupuesto total (barra de progreso + resto).
 
-### HU-3.2 — Categorías de presupuesto 🔜
+### HU-3.2 — Categorías de presupuesto ✅
 **Como** viajero, **quiero** repartir el presupuesto en categorías (transporte, comida, alojamiento…), **para** un control más fino.
 
-- El sistema DEBE permitir crear categorías con un monto asignado.
+- El sistema DEBE permitir crear categorías con un monto asignado (`POST /api/budget-categories`).
 - El nombre de categoría DEBE ser único dentro del viaje.
+- El sistema NO DEBE permitir eliminar una categoría que tenga gastos.
 
-### HU-3.3 — Registrar un gasto 🔜
+### HU-3.3 — Registrar un gasto ✅
 **Como** viajero, **quiero** anotar un gasto con monto, categoría y fecha, **para** llevar la cuenta.
 
-- El sistema DEBE pedir monto, moneda, categoría y fecha como obligatorios.
+- El sistema DEBE pedir monto, moneda, categoría y fecha como obligatorios (la moneda hereda la del viaje).
 - El sistema DEBE permitir seleccionar el método de pago: efectivo, tarjeta de crédito, tarjeta de débito, transferencia, billetera digital u otro.
 - El sistema DEBE permitir asociar el gasto a una actividad (opcional).
 - El sistema DEBE permitir una descripción opcional del gasto.
 
-### HU-3.4 — Resumen de gastos 🔜
+### HU-3.4 — Resumen de gastos ✅
 **Como** viajero, **quiero** ver gastado vs. asignado por categoría y en total, **para** saber cómo voy.
 
-- El sistema DEBE mostrar, por categoría: asignado, gastado y diferencia.
-- El sistema DEBE marcar las categorías excedidas.
+- El sistema DEBE mostrar, por categoría: asignado, gastado y diferencia (`GET /api/trips/:id/budget`).
+- El sistema DEBE marcar las categorías excedidas (rojo + "Excedido").
 
 ### HU-3.5 — Multi-moneda 💭
 **Como** viajero, **quiero** cargar gastos en distintas monedas y verlos convertidos, **para** un total real.

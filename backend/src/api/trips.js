@@ -1,6 +1,7 @@
 import express from 'express';
 import Trip from '../models/Trip.js';
 import Day from '../models/Day.js';
+import Budget from '../models/Budget.js';
 
 const router = express.Router();
 
@@ -191,6 +192,19 @@ router.delete('/:id', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+// GET /api/trips/:id/budget - Budget summary: categories with allocated vs spent, plus totals
+router.get('/:id/budget', async (req, res) => {
+  try {
+    const summary = await Budget.getSummary(req.params.id);
+    if (!summary) {
+      return res.status(404).json({ success: false, error: 'Trip not found' });
+    }
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

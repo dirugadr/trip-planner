@@ -4,6 +4,9 @@ import config from './config/index.js';
 import tripsRouter from './api/trips.js';
 import daysRouter from './api/days.js';
 import activitiesRouter from './api/activities.js';
+import budgetCategoriesRouter from './api/budgetCategories.js';
+import expensesRouter from './api/expenses.js';
+import paymentMethodsRouter from './api/paymentMethods.js';
 
 const app = express();
 
@@ -39,6 +42,9 @@ app.get('/api/health', (req, res) => {
 app.use('/api/trips', tripsRouter);
 app.use('/api/days', daysRouter);
 app.use('/api/activities', activitiesRouter);
+app.use('/api/budget-categories', budgetCategoriesRouter);
+app.use('/api/expenses', expensesRouter);
+app.use('/api/payment-methods', paymentMethodsRouter);
 
 // ============================================
 // 404 Handler

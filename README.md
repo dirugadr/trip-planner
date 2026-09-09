@@ -79,9 +79,9 @@ como frontend y API comparten origen no hay nada que configurar de CORS.
 
 ## Épicas
 
-- [ ] Épica 1: Itinerarios
+- [x] Épica 1: Itinerarios
 - [ ] Épica 2: Mapa y POIs
-- [ ] Épica 3: Presupuesto
+- [x] Épica 3: Presupuesto
 - [ ] Épica 4: Offline
 - [ ] Épica 5: Versión Mobile
 - [ ] Épica 6: Documentos

@@ -126,6 +126,9 @@ export default function TripDetailPage() {
             {trip.description && <p style={{ marginBottom: 0 }}>{trip.description}</p>}
           </div>
           <div className="activity-actions">
+            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/budget`}>
+              Presupuesto
+            </Link>
             <button className="btn btn-secondary btn-sm" onClick={() => setEditingTrip(true)}>
               Editar
             </button>

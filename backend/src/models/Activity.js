@@ -54,7 +54,7 @@ export class Activity {
     return deleteOne(TABLE, id, soft);
   }
 
-  static async checkTimeConflict(dayId, startTime, durationMinutes) {
+  static async checkTimeConflict(dayId, startTime, durationMinutes, excludeId = null) {
     if (!startTime || !durationMinutes) return false;
 
     // Parse time to minutes
@@ -62,14 +62,15 @@ export class Activity {
     const activityStart = startHour * 60 + startMin;
     const activityEnd = activityStart + durationMinutes;
 
-    // Check for overlaps
+    // Check for overlaps, ignoring the activity being edited
     const conflicts = await dbAll(
       `SELECT * FROM ${TABLE}
        WHERE day_id = ?
        AND deleted_at IS NULL
        AND start_time IS NOT NULL
-       AND duration_minutes IS NOT NULL`,
-      [dayId]
+       AND duration_minutes IS NOT NULL
+       ${excludeId ? 'AND id != ?' : ''}`,
+      excludeId ? [dayId, excludeId] : [dayId]
     );
 
     return conflicts.some((activity) => {

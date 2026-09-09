@@ -98,7 +98,8 @@ router.put('/:id', async (req, res) => {
       const hasConflict = await Activity.checkTimeConflict(
         activity.day_id,
         req.body.start_time,
-        req.body.duration_minutes
+        req.body.duration_minutes,
+        activity.id
       );
       if (hasConflict) {
         return res.status(400).json({

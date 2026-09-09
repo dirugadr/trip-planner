@@ -7,7 +7,7 @@
     "dev": "node --watch backend/src/index.js",
     "start": "node backend/src/index.js",
     "migrate": "node backend/src/db/migrate.js",
-    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "build": "npm --prefix frontend install --include=dev && npm --prefix frontend run build",
     "frontend:dev": "npm --prefix frontend run dev"
   },
   "dependencies": {

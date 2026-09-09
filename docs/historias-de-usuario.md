@@ -157,8 +157,10 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 ### HU-3.3 — Registrar un gasto 🔜
 **Como** viajero, **quiero** anotar un gasto con monto, categoría y fecha, **para** llevar la cuenta.
 
-- El sistema DEBE pedir monto, moneda, categoría y fecha.
+- El sistema DEBE pedir monto, moneda, categoría y fecha como obligatorios.
+- El sistema DEBE permitir seleccionar el método de pago: efectivo, tarjeta de crédito, tarjeta de débito, transferencia, billetera digital u otro.
 - El sistema DEBE permitir asociar el gasto a una actividad (opcional).
+- El sistema DEBE permitir una descripción opcional del gasto.
 
 ### HU-3.4 — Resumen de gastos 🔜
 **Como** viajero, **quiero** ver gastado vs. asignado por categoría y en total, **para** saber cómo voy.

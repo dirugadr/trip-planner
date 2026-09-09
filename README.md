@@ -85,6 +85,7 @@ como frontend y API comparten origen no hay nada que configurar de CORS.
 - [ ] Épica 4: Offline
 - [ ] Épica 5: Versión Mobile
 - [ ] Épica 6: Documentos
+- [ ] Épica 7: Seguridad y acceso (login con Google + allowlist)
 
 ## License
 

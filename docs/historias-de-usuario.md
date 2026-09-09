@@ -230,3 +230,75 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 
 ### HU-6.3 — Eliminar un documento 💭
 - El sistema DEBE hacer borrado lógico y, aparte, limpiar el blob.
+
+---
+
+## Épica 7 — Seguridad y acceso
+
+> Hoy la app no tiene autenticación: cualquiera con la URL ve y edita todo.
+> Objetivo: **pasa / no pasa**. Autenticación con Google, una lista de correos
+> habilitados en configuración, sin roles. Todas las personas habilitadas
+> comparten los mismos datos (no hay dueño por viaje).
+
+**Decisiones de diseño**
+
+- Login con Google Identity Services (botón "Sign in with Google" → ID token).
+- El backend verifica el ID token de Google (firma vía JWKS, `aud` = nuestro
+  client id, `email_verified`) y, si el correo está habilitado, emite un **JWT
+  de sesión propio** (firmado con `JWT_SECRET`, expiración configurable).
+- La lista de habilitados vive en `ALLOWED_EMAILS` (variable de entorno, correos
+  separados por coma). Sin tabla de usuarios, sin panel de admin.
+- Fail-closed: sin `ALLOWED_EMAILS` o sin `JWT_SECRET` válido, nadie entra.
+
+### HU-7.1 — Iniciar sesión con Google 🔜
+**Como** persona habilitada, **quiero** entrar con mi cuenta de Google, **para** no crear otra contraseña.
+
+- El sistema DEBE mostrar "Iniciar sesión con Google" en una pantalla de login.
+- El backend DEBE verificar el ID token de Google (firma + `aud` + `email_verified`).
+- CUANDO el correo está en `ALLOWED_EMAILS`, el sistema DEBE crear la sesión y dar acceso.
+- CUANDO el correo NO está habilitado, el sistema DEBE negar el acceso con un mensaje claro y NO crear sesión.
+
+### HU-7.2 — Lista de correos habilitados 🔜
+**Como** dueño de la instancia, **quiero** definir qué cuentas pueden entrar, **para** controlar el acceso sin tocar código.
+
+- El sistema DEBE leer `ALLOWED_EMAILS` (env var, correos separados por coma), comparando sin distinguir mayúsculas ni espacios.
+- CUANDO `ALLOWED_EMAILS` está vacía o ausente, el sistema DEBE negar todo acceso (fail-closed).
+
+### HU-7.3 — Sesión persistente 🔜
+**Como** usuario, **quiero** seguir logueado entre visitas, **para** no autenticarme cada vez.
+
+- AL iniciar sesión, el backend DEBE emitir un JWT de sesión propio (expiración `JWT_EXPIRES_IN`, default 7 días).
+- El frontend DEBE guardar el token y adjuntarlo como `Authorization: Bearer` en cada request.
+- AL abrir la app, el sistema DEBE restaurar la sesión si el token sigue vigente (`GET /api/auth/me`).
+
+### HU-7.4 — Cerrar sesión 🔜
+**Como** usuario, **quiero** poder salir, **para** dejar el equipo seguro.
+
+- El sistema DEBE ofrecer "Cerrar sesión": borra el token local y vuelve al login.
+
+### HU-7.5 — API protegida 🔜
+**Como** dueño, **quiero** que la API no responda a nadie sin sesión, **para** que los datos no queden expuestos.
+
+- Todos los endpoints bajo `/api` (excepto `/api/auth/login`, `/api/auth/me` y `/api/health`) DEBEN requerir un JWT de sesión válido.
+- CUANDO el token falta, expiró o es inválido, el sistema DEBE responder 401.
+- CUANDO el frontend recibe 401, DEBE limpiar la sesión y mandar al login.
+
+### HU-7.6 — Revocar acceso 🔜
+**Como** dueño, **quiero** poder sacarle el acceso a alguien, **para** responder a bajas o incidentes.
+
+- CUANDO quito un correo de `ALLOWED_EMAILS`, el sistema DEBE negar el acceso en el próximo login.
+- Los tokens ya emitidos siguen válidos hasta expirar (expiración corta lo acota). *(🔜 opción: revalidar la allowlist en cada request para revocación inmediata.)*
+
+### HU-7.7 — No arrancar inseguro 🔜
+**Como** dueño, **quiero** que la app se niegue a correr mal configurada, **para** no exponerme por un descuido.
+
+- En producción, el sistema DEBE requerir `JWT_SECRET` y negarse a arrancar con el valor de ejemplo.
+- `GOOGLE_CLIENT_ID` y `ALLOWED_EMAILS` DEBEN venir de config, nunca hardcodeados.
+- `.env.example` DEBE documentar `GOOGLE_CLIENT_ID`, `ALLOWED_EMAILS`, `JWT_SECRET`.
+
+### Fuera de alcance de esta iteración (hardening general) 🔜
+
+- **HU-7.8** — Rate limiting en `/api/auth/login`.
+- **HU-7.9** — Security headers (helmet) y CORS restringido al dominio de Vercel.
+- **HU-7.10** — Límite de tamaño de request y `npm audit` en CI.
+- **HU-7.11** — Revocación inmediata (allowlist en cada request) o sesiones server-side.

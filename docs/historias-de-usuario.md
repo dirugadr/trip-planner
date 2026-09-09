@@ -326,7 +326,7 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
   (por fecha) contiene ese día. Normalmente una; en un día de transición
   (se deja uno y se entra en otro) son dos.
 
-### HU-8.1 — Alta de alojamiento 🔜
+### HU-8.1 — Alta de alojamiento ✅
 **Como** viajero, **quiero** cargar un alojamiento con sus datos, **para** tener todo junto.
 
 - El sistema DEBE pedir como obligatorios: nombre, fecha y hora de entrada,
@@ -336,13 +336,13 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - CUANDO la salida no es posterior a la entrada, el sistema DEBE rechazar con
   un error claro.
 
-### HU-8.2 — Listar / editar / eliminar alojamientos 🔜
+### HU-8.2 — Listar / editar / eliminar alojamientos ✅
 **Como** viajero, **quiero** ver y mantener los alojamientos del viaje, **para** que reflejen la realidad.
 
 - El sistema DEBE listar los alojamientos del viaje ordenados por fecha de entrada.
 - El sistema DEBE permitir editar todos los campos y eliminar (borrado lógico, con confirmación).
 
-### HU-8.3 — Registrar el pago del alojamiento 🔜
+### HU-8.3 — Registrar el pago del alojamiento ✅
 **Como** viajero, **quiero** anotar cuánto pagué por un alojamiento, **para** que impacte en el presupuesto.
 
 - El formulario del alojamiento DEBE tener una sección "Pago" opcional: monto,
@@ -353,7 +353,7 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - AL eliminar el alojamiento, el sistema DEBE borrar (lógico) su gasto vinculado.
 - El gasto vinculado DEBE aparecer en la vista de Presupuesto como cualquier otro.
 
-### HU-8.4 — Etiqueta de ciudad en los días 🔜
+### HU-8.4 — Etiqueta de ciudad en los días ✅
 **Como** viajero, **quiero** ver en cada día del itinerario en qué ciudad estoy, **para** entender de un vistazo cómo se mueve el viaje.
 
 - El sistema DEBE mostrar, en la tarjeta de cada día, la ciudad del alojamiento

@@ -361,3 +361,16 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - CUANDO un día está cubierto por dos alojamientos (se deja uno y se entra en
   otro), el sistema DEBE mostrar ambas ciudades (ej. "Kioto → Osaka").
 - CUANDO ningún alojamiento cubre el día, la tarjeta NO muestra etiqueta de ciudad.
+
+### HU-8.5 — Actividades de check-in / check-out ✅
+**Como** viajero, **quiero** ver el check-in y el check-out como actividades en el itinerario, **para** no olvidarme de esos momentos.
+
+- AL crear o editar un alojamiento, el sistema DEBE mantener dos actividades
+  vinculadas: "Check-in en {nombre}" el día de la entrada (con su hora) y
+  "Check-out en {nombre}" el día de la salida.
+- Editar el alojamiento (nombre, fechas, horas) DEBE actualizar esas actividades
+  en su lugar, sin duplicarlas.
+- AL eliminar el alojamiento, el sistema DEBE borrar (lógico) esas actividades.
+- CUANDO la fecha de entrada/salida cae fuera del rango del viaje (no hay día),
+  esa actividad se omite.
+- El itinerario DEBE marcar estas actividades como generadas por el alojamiento.

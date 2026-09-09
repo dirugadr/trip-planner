@@ -1,5 +1,7 @@
 import express from 'express';
 import Trip from '../models/Trip.js';
+import Day from '../models/Day.js';
+import Activity from '../models/Activity.js';
 import Accommodation from '../models/Accommodation.js';
 import Expense from '../models/Expense.js';
 import BudgetCategory from '../models/BudgetCategory.js';
@@ -85,6 +87,55 @@ async function syncExpense(accommodation, payment, trip) {
   }
 }
 
+/**
+ * Keep a "Check-in en <name>" activity on the check-in day and a
+ * "Check-out en <name>" on the check-out day, in sync with the accommodation.
+ * If no day matches a date (e.g. it falls outside the trip), that activity is
+ * skipped and any stale one is removed.
+ */
+async function syncActivities(accommodation, trip) {
+  const days = await Day.findByTripId(trip.id);
+  const dayIdByDate = new Map(days.map((d) => [d.date, d.id]));
+
+  const items = [
+    {
+      role: 'check_in',
+      date: accommodation.check_in.slice(0, 10),
+      time: accommodation.check_in.slice(11, 16),
+      title: `Check-in en ${accommodation.name}`
+    },
+    {
+      role: 'check_out',
+      date: accommodation.check_out.slice(0, 10),
+      time: accommodation.check_out.slice(11, 16),
+      title: `Check-out en ${accommodation.name}`
+    }
+  ];
+
+  for (const item of items) {
+    const existing = await Activity.findLinked(accommodation.id, item.role);
+    const dayId = dayIdByDate.get(item.date);
+
+    if (!dayId) {
+      if (existing) await Activity.delete(existing.id, true);
+      continue;
+    }
+
+    if (existing) {
+      await Activity.update(existing.id, { day_id: dayId, title: item.title, start_time: item.time });
+    } else {
+      await Activity.create({
+        day_id: dayId,
+        title: item.title,
+        start_time: item.time,
+        sort_order: 0,
+        accommodation_id: accommodation.id,
+        accommodation_role: item.role
+      });
+    }
+  }
+}
+
 // GET /api/accommodations?trip_id=...
 router.get('/', async (req, res) => {
   try {
@@ -115,6 +166,7 @@ router.post('/', async (req, res) => {
     } catch (e) {
       return res.status(e.status || 500).json({ success: false, error: e.message });
     }
+    await syncActivities(accommodation, trip);
 
     res.status(201).json({ success: true, data: accommodation });
   } catch (error) {
@@ -143,6 +195,7 @@ router.put('/:id', async (req, res) => {
     } catch (e) {
       return res.status(e.status || 500).json({ success: false, error: e.message });
     }
+    await syncActivities(updated, trip);
 
     res.json({ success: true, data: updated });
   } catch (error) {
@@ -150,7 +203,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/accommodations/:id - soft delete accommodation + its linked expense
+// DELETE /api/accommodations/:id - soft delete accommodation + linked expense + linked activities
 router.delete('/:id', async (req, res) => {
   try {
     const accommodation = await Accommodation.findById(req.params.id);
@@ -158,6 +211,7 @@ router.delete('/:id', async (req, res) => {
 
     const expense = await Expense.findByAccommodationId(req.params.id);
     if (expense) await Expense.delete(expense.id, true);
+    await Activity.deleteByAccommodationId(req.params.id);
     await Accommodation.delete(req.params.id, true);
 
     res.json({ success: true, message: 'Alojamiento eliminado' });

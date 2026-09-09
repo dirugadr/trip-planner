@@ -23,7 +23,9 @@ export class Activity {
       longitude: data.longitude || null,
       url: data.url || null,
       completed: data.completed ? 1 : 0,
-      sort_order: (maxRow?.m ?? 0) + 1,
+      sort_order: data.sort_order ?? (maxRow?.m ?? 0) + 1,
+      accommodation_id: data.accommodation_id || null,
+      accommodation_role: data.accommodation_role || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       deleted_at: null,
@@ -32,6 +34,24 @@ export class Activity {
 
     await insertOne(TABLE, activity);
     return activity;
+  }
+
+  /** The check-in / check-out activity linked to an accommodation, if any. */
+  static async findLinked(accommodationId, role) {
+    const rows = await dbAll(
+      `SELECT * FROM ${TABLE}
+       WHERE accommodation_id = ? AND accommodation_role = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [accommodationId, role]
+    );
+    return rows[0] || null;
+  }
+
+  static async deleteByAccommodationId(accommodationId) {
+    await dbRun(
+      `UPDATE ${TABLE} SET deleted_at = datetime('now') WHERE accommodation_id = ? AND deleted_at IS NULL`,
+      [accommodationId]
+    );
   }
 
   static findById(id) {

@@ -218,7 +218,13 @@ export default function TripDetailPage() {
                   />
                   <div className="activity-time">{activity.start_time || '—'}</div>
                   <div className="activity-body">
-                    <div className="activity-title">{activity.title}</div>
+                    <div className="activity-title">
+                      {activity.accommodation_id && '🏨 '}
+                      {activity.title}
+                    </div>
+                    {activity.accommodation_id && (
+                      <div className="muted">Generada por el alojamiento</div>
+                    )}
                     {activity.description && <div className="muted">{activity.description}</div>}
                     {activity.location_name && (
                       <div className="muted">📍 {activity.location_name}</div>

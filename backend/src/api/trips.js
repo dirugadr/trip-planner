@@ -2,6 +2,7 @@ import express from 'express';
 import Trip from '../models/Trip.js';
 import Day from '../models/Day.js';
 import Budget from '../models/Budget.js';
+import Accommodation from '../models/Accommodation.js';
 
 const router = express.Router();
 
@@ -91,13 +92,26 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    // Accommodations -> per-day city label (HU-8.4)
+    const accommodations = await Accommodation.findByTripId(trip.id);
+    const citiesForDay = (date) => {
+      const cities = [];
+      for (const a of accommodations) {
+        if (a.check_in.slice(0, 10) <= date && date <= a.check_out.slice(0, 10)) {
+          if (!cities.includes(a.city)) cities.push(a.city);
+        }
+      }
+      return cities;
+    };
+
     // Get days and activities
     const tripDays = await Day.findByTripId(trip.id);
     const days = await Promise.all(
       tripDays.map(async (day) => ({
         ...day,
         activities: await Day.getActivities(day.id),
-        totalDuration: await Day.getTotalDuration(day.id)
+        totalDuration: await Day.getTotalDuration(day.id),
+        cities: citiesForDay(day.date)
       }))
     );
 

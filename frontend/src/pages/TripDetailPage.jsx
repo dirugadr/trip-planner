@@ -126,6 +126,9 @@ export default function TripDetailPage() {
             {trip.description && <p style={{ marginBottom: 0 }}>{trip.description}</p>}
           </div>
           <div className="activity-actions">
+            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/alojamientos`}>
+              Alojamientos
+            </Link>
             <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/budget`}>
               Presupuesto
             </Link>
@@ -181,6 +184,12 @@ export default function TripDetailPage() {
               </button>
             </div>
           </div>
+
+          {day.cities?.length > 0 && (
+            <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+              📍 {day.cities.join(' → ')}
+            </p>
+          )}
 
           {day.notes && (
             <p className="muted" style={{ margin: '0.25rem 0 0', whiteSpace: 'pre-wrap' }}>

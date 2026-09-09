@@ -1,9 +1,22 @@
 const dateFmt = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' });
+const dateTimeFmt = new Intl.DateTimeFormat('es', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
 
 export function formatDate(value) {
   if (!value) return '';
   const d = new Date(value.length <= 10 ? `${value}T00:00:00` : value);
   return Number.isNaN(d.getTime()) ? value : dateFmt.format(d);
+}
+
+export function formatDateTime(value) {
+  if (!value) return '';
+  const d = new Date(value.length <= 10 ? `${value}T00:00:00` : value);
+  return Number.isNaN(d.getTime()) ? value : dateTimeFmt.format(d);
 }
 
 export function formatDateRange(start, end) {

@@ -9,6 +9,7 @@ const overlay = {
   justifyContent: 'center',
   padding: '3rem 1rem',
   zIndex: 50,
+  overflowY: 'auto',
 };
 
 const panel = {
@@ -18,6 +19,8 @@ const panel = {
   width: '100%',
   maxWidth: '480px',
   padding: '1.5rem',
+  maxHeight: 'calc(100vh - 6rem)',
+  overflowY: 'auto',
 };
 
 export default function Modal({ title, onClose, children }) {

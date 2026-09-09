@@ -2,6 +2,7 @@ import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import TripListPage from './pages/TripListPage.jsx';
 import TripDetailPage from './pages/TripDetailPage.jsx';
 import BudgetPage from './pages/BudgetPage.jsx';
+import AccommodationsPage from './pages/AccommodationsPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import { useAuth } from './context/AuthContext.jsx';
@@ -53,6 +54,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <BudgetPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trips/:id/alojamientos"
+            element={
+              <RequireAuth>
+                <AccommodationsPage />
               </RequireAuth>
             }
           />

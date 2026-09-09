@@ -9,6 +9,7 @@ import activitiesRouter from './api/activities.js';
 import budgetCategoriesRouter from './api/budgetCategories.js';
 import expensesRouter from './api/expenses.js';
 import paymentMethodsRouter from './api/paymentMethods.js';
+import accommodationsRouter from './api/accommodations.js';
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use('/api/activities', activitiesRouter);
 app.use('/api/budget-categories', budgetCategoriesRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
+app.use('/api/accommodations', accommodationsRouter);
 
 // ============================================
 // 404 Handler

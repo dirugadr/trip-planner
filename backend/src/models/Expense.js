@@ -10,6 +10,7 @@ export class Expense {
       trip_id: data.trip_id,
       category_id: data.category_id,
       activity_id: data.activity_id || null,
+      accommodation_id: data.accommodation_id || null,
       payment_method_id: data.payment_method_id || null,
       amount: data.amount,
       currency_code: data.currency_code,
@@ -38,8 +39,25 @@ export class Expense {
     );
   }
 
+  static async findByAccommodationId(accommodationId) {
+    const rows = await dbAll(
+      `SELECT * FROM ${TABLE} WHERE accommodation_id = ? AND deleted_at IS NULL LIMIT 1`,
+      [accommodationId]
+    );
+    return rows[0] || null;
+  }
+
   static async update(id, data) {
-    const allowed = ['category_id', 'activity_id', 'payment_method_id', 'amount', 'currency_code', 'description', 'expense_date'];
+    const allowed = [
+      'category_id',
+      'activity_id',
+      'accommodation_id',
+      'payment_method_id',
+      'amount',
+      'currency_code',
+      'description',
+      'expense_date'
+    ];
     const patch = { updated_at: new Date().toISOString() };
     for (const key of allowed) {
       if (key in data) patch[key] = data[key];

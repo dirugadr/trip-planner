@@ -1,4 +1,5 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import Trip from '../models/Trip.js';
 import Day from '../models/Day.js';
 import Budget from '../models/Budget.js';
@@ -16,10 +17,7 @@ router.get('/', async (req, res) => {
       data: trips
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -74,10 +72,7 @@ router.post('/', async (req, res) => {
       data: trip
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -136,10 +131,7 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -185,10 +177,7 @@ router.put('/:id', async (req, res) => {
       data: updated
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -211,10 +200,7 @@ router.delete('/:id', async (req, res) => {
       message: 'Trip deleted successfully'
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -227,7 +213,7 @@ router.get('/:id/budget', async (req, res) => {
     }
     res.json({ success: true, data: summary });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

@@ -17,6 +17,7 @@ import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
 import AccommodationForm from '../components/AccommodationForm.jsx';
 import TripTabs from '../components/TripTabs.jsx';
+import { safeUrl } from '../utils/safeUrl.js';
 
 export default function AccommodationsPage() {
   const { id } = useParams();
@@ -127,9 +128,9 @@ export default function AccommodationsPage() {
                   <div className="muted stack-sm">
                     {a.phone && <span>📞 {a.phone}</span>}
                     {a.email && <span>✉️ {a.email}</span>}
-                    {a.booking_url && (
+                    {safeUrl(a.booking_url) && (
                       <span>
-                        <a href={a.booking_url} target="_blank" rel="noreferrer">
+                        <a href={safeUrl(a.booking_url)} target="_blank" rel="noreferrer">
                           reserva
                         </a>
                       </span>

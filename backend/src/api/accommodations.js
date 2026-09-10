@@ -1,4 +1,5 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import Trip from '../models/Trip.js';
 import Day from '../models/Day.js';
 import Activity from '../models/Activity.js';
@@ -7,6 +8,7 @@ import Expense from '../models/Expense.js';
 import BudgetCategory from '../models/BudgetCategory.js';
 import Poi from '../models/Poi.js';
 import ActivityPoi from '../models/ActivityPoi.js';
+import { sanitizeHttpUrl } from '../lib/url.js';
 
 // POIs auto-generated from an accommodation get this category (HU-8.6).
 const ACCOMMODATION_POI_CATEGORY = 'cat_accommodation';
@@ -43,8 +45,13 @@ function validateFields(body, { partial = false } = {}) {
     errors.push('La salida debe ser posterior a la entrada');
   }
 
-  for (const key of ['phone', 'email', 'booking_url']) {
+  for (const key of ['phone', 'email']) {
     if (key in body) out[key] = (body[key] ?? '').toString().trim() || null;
+  }
+  if ('booking_url' in body) {
+    const raw = (body.booking_url ?? '').toString().trim();
+    if (raw && !sanitizeHttpUrl(raw)) errors.push('El link de la reserva debe empezar con http:// o https://');
+    else out.booking_url = sanitizeHttpUrl(raw);
   }
 
   return { errors, out };
@@ -194,7 +201,7 @@ router.get('/', async (req, res) => {
     if (!trip_id) return res.status(400).json({ success: false, error: 'trip_id is required' });
     res.json({ success: true, data: await Accommodation.findByTripId(trip_id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -222,7 +229,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ success: true, data: accommodation });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -252,7 +259,7 @@ router.put('/:id', async (req, res) => {
 
     res.json({ success: true, data: updated });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -271,7 +278,7 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ success: true, message: 'Alojamiento eliminado' });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

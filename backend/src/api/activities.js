@@ -1,22 +1,29 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import Activity from '../models/Activity.js';
 import ActivityPoi from '../models/ActivityPoi.js';
 import Poi from '../models/Poi.js';
 import { validatePoiPayload } from './pois.js';
 import { dbBatch } from '../db/database.js';
+import { sanitizeHttpUrl } from '../lib/url.js';
 
 const router = express.Router();
 
 // POST /api/activities - Create activity
 router.post('/', async (req, res) => {
   try {
-    const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, url, tentative } = req.body;
+    const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, tentative } = req.body;
 
     if (!day_id || !title) {
       return res.status(400).json({
         success: false,
         error: 'day_id and title are required'
       });
+    }
+
+    const url = 'url' in req.body ? sanitizeHttpUrl(req.body.url) : undefined;
+    if (req.body.url && !url) {
+      return res.status(400).json({ success: false, error: 'El enlace debe empezar con http:// o https://' });
     }
 
     // Tentative plans don't need to be conflict-free
@@ -49,10 +56,7 @@ router.post('/', async (req, res) => {
       data: activity
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -78,10 +82,7 @@ router.get('/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -99,6 +100,14 @@ router.put('/:id', async (req, res) => {
 
     if ('tentative' in req.body) req.body.tentative = req.body.tentative ? 1 : 0;
     const isTentative = 'tentative' in req.body ? req.body.tentative : activity.tentative;
+
+    if ('url' in req.body) {
+      const clean = sanitizeHttpUrl(req.body.url);
+      if (req.body.url && !clean) {
+        return res.status(400).json({ success: false, error: 'El enlace debe empezar con http:// o https://' });
+      }
+      req.body.url = clean;
+    }
 
     // Tentative plans don't need to be conflict-free
     if (!isTentative && req.body.start_time && req.body.duration_minutes) {
@@ -131,10 +140,7 @@ router.put('/:id', async (req, res) => {
       data: updated
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -158,10 +164,7 @@ router.delete('/:id', async (req, res) => {
       message: 'Activity deleted successfully'
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    serverError(res, error);
   }
 });
 
@@ -180,7 +183,7 @@ router.post('/:id/move', async (req, res) => {
 
     res.json({ success: true, data: moved });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -195,7 +198,7 @@ router.get('/:activityId/pois', async (req, res) => {
     if (!activity) return res.status(404).json({ success: false, error: 'Activity not found' });
     res.json({ success: true, data: await ActivityPoi.list(activity.id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -223,7 +226,7 @@ router.post('/:activityId/pois', async (req, res) => {
     await ActivityPoi.associate(activity.id, poi_id);
     res.status(201).json({ success: true, data: await ActivityPoi.list(activity.id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -249,7 +252,7 @@ router.post('/:activityId/pois/new', async (req, res) => {
 
     res.status(201).json({ success: true, data: await ActivityPoi.list(activity.id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -273,7 +276,7 @@ router.put('/:activityId/pois/reorder', async (req, res) => {
     await ActivityPoi.reorder(activity.id, poi_ids);
     res.json({ success: true, data: await ActivityPoi.list(activity.id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -286,7 +289,7 @@ router.delete('/:activityId/pois/:poiId', async (req, res) => {
     await ActivityPoi.dissociate(activity.id, req.params.poiId);
     res.json({ success: true, data: await ActivityPoi.list(activity.id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

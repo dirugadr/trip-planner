@@ -364,8 +364,9 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 **Como** dueño, **quiero** poder sacarle el acceso a alguien, **para** responder a bajas o incidentes.
 
 - CUANDO quito un correo de `ALLOWED_EMAILS`, el sistema DEBE negar el acceso en el próximo login.
-- `requireAuth` revalida la allowlist en cada request, así que quitar un correo
-  corta el acceso al siguiente request, sin esperar a que expire el token *(ver HU-7.11)*.
+- `requireAuth` **y** `GET /api/auth/me` revalidan la allowlist en cada request,
+  así que quitar un correo corta el acceso al siguiente request, sin esperar a
+  que expire el token *(ver HU-7.11)*.
 
 ### HU-7.7 — No arrancar inseguro ✅
 **Como** dueño, **quiero** que la app se niegue a correr mal configurada, **para** no exponerme por un descuido.
@@ -390,6 +391,16 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - **HU-7.11 ✅** — `requireAuth` revalida la allowlist en cada request: sacar un
   correo de `ALLOWED_EMAILS_TP` corta el acceso al próximo request (no hay que
   esperar a que expire el token).
+
+### Revisión de seguridad (2026-09-10) ✅
+
+Corregidos: inyección SQL por nombre de columna / mass-assignment en
+`PUT /api/trips` y `PUT /api/activities` (whitelist de campos + validación de
+identificadores en `db/database.js`); fuga de `error.message` en producción
+(helper `serverError`); URLs `javascript:`/`data:` en campos de enlace
+(sanitización back + front); `GET /api/auth/me` ahora revalida la allowlist.
+Detalle completo, protecciones y riesgos aceptados en
+[`docs/seguridad.md`](seguridad.md).
 
 ---
 

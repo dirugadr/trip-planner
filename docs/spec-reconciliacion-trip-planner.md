@@ -91,8 +91,12 @@ HU-6.1 a HU-6.3: adjuntar, ver/descargar y eliminar documentos. Tabla `documents
 - Fail-closed: sin `ALLOWED_EMAILS` o `JWT_SECRET` válidos, la API no sirve nada (503).
 - `requireAuth` revalida la allowlist en cada request (revocación inmediata, no hay que esperar a que expire el token).
 - Hardening adicional ya hecho: rate limiting (20 req/15min en login, 300 req/min en el resto), `helmet()` + CSP, `express.json({ limit: '100kb' })`, CI con `npm audit`, Express 5, 0 vulnerabilidades de producción.
+- Revisión de seguridad 2026-09-10: cerrados inyección por nombre de columna /
+  mass-assignment, fuga de `error.message` en prod, XSS por URLs `javascript:`,
+  y revocación en `/api/auth/me`. Ver [`docs/seguridad.md`](seguridad.md).
 
 **⚠️ Riesgo si se toca**: bajo para el resto del sistema — es transversal pero ya estable.
+Reglas al agregar código en [`docs/seguridad.md`](seguridad.md) ("Guía para cambios futuros").
 
 ---
 

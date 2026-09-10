@@ -3,6 +3,10 @@ import { insertOne, updateOne, deleteOne, findById, dbGet, dbAll } from '../db/d
 
 const TABLE = 'trips';
 
+// Columns a client may set via PUT /api/trips/:id. Everything else (id,
+// timestamps, version, deleted_at) is managed server-side — never mass-assigned.
+const EDITABLE = ['name', 'description', 'start_date', 'end_date', 'currency_code', 'total_budget', 'timezone'];
+
 export class Trip {
   static async create(data) {
     const trip = {
@@ -36,11 +40,10 @@ export class Trip {
   }
 
   static async update(id, data) {
-    const updates = {
-      ...data,
-      updated_at: new Date().toISOString(),
-      version: (data.version || 0) + 1
-    };
+    const updates = { updated_at: new Date().toISOString(), version: (data.version || 0) + 1 };
+    for (const key of EDITABLE) {
+      if (key in data) updates[key] = data[key];
+    }
 
     const success = await updateOne(TABLE, id, updates);
     if (success) {

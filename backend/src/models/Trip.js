@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { insertOne, updateOne, deleteOne, findById, findAll, dbGet } from '../db/database.js';
+import { insertOne, updateOne, deleteOne, findById, dbGet, dbAll } from '../db/database.js';
 
 const TABLE = 'trips';
 
@@ -28,8 +28,11 @@ export class Trip {
     return findById(TABLE, id);
   }
 
+  // Soonest trip first (HU-1.2), stable tiebreak on creation order.
   static findAll() {
-    return findAll(TABLE);
+    return dbAll(
+      `SELECT * FROM ${TABLE} WHERE deleted_at IS NULL ORDER BY start_date ASC, created_at ASC`
+    );
   }
 
   static async update(id, data) {

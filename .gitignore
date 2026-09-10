@@ -9,6 +9,7 @@ node_modules/
 .env.*.local
 Trip-Planner-tucso.txt
 google_oauth.txt
+blob.txt
 *.secrets.txt
 
 # Database

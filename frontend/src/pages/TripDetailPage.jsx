@@ -138,6 +138,9 @@ export default function TripDetailPage() {
             <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/mapa`}>
               Mapa
             </Link>
+            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/documentos`}>
+              Documentos
+            </Link>
             <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/budget`}>
               Presupuesto
             </Link>

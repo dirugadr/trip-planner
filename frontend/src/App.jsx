@@ -3,6 +3,7 @@ import TripListPage from './pages/TripListPage.jsx';
 import TripDetailPage from './pages/TripDetailPage.jsx';
 import BudgetPage from './pages/BudgetPage.jsx';
 import AccommodationsPage from './pages/AccommodationsPage.jsx';
+import PoisPage from './pages/PoisPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import { useAuth } from './context/AuthContext.jsx';
@@ -62,6 +63,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <AccommodationsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trips/:id/lugares"
+            element={
+              <RequireAuth>
+                <PoisPage />
               </RequireAuth>
             }
           />

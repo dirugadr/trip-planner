@@ -12,6 +12,7 @@ import budgetCategoriesRouter from './api/budgetCategories.js';
 import expensesRouter from './api/expenses.js';
 import paymentMethodsRouter from './api/paymentMethods.js';
 import accommodationsRouter from './api/accommodations.js';
+import poisRouter from './api/pois.js';
 
 const app = express();
 
@@ -80,6 +81,8 @@ app.use('/api/budget-categories', budgetCategoriesRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
 app.use('/api/accommodations', accommodationsRouter);
+// POIs (HU-2.1): /api/poi-categories, /api/trips/:tripId/pois, /api/pois/:id
+app.use('/api', poisRouter);
 
 // ============================================
 // 404 Handler

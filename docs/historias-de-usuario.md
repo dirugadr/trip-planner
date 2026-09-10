@@ -112,12 +112,28 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 > Guardar puntos de interés (lugares), verlos en un mapa y vincularlos al itinerario.
 > Tablas ya existentes: `pois_saved`, `poi_categories`, `activity_pois`, `transport_modes`, `routes`.
 
-### HU-2.1 — Guardar un POI 🔜
-**Como** viajero, **quiero** guardar un lugar con nombre, categoría y coordenadas, **para** tenerlo a mano.
+### HU-2.1 — Guardar un POI ✅
+**Como** viajero, **quiero** guardar un lugar con nombre, categoría y ubicación, **para** tenerlo a mano.
 
-- El sistema DEBE pedir nombre, categoría y ubicación (lat/lng) como obligatorios.
-- El sistema DEBE permitir dirección, notas y enlace.
-- Los POI pertenecen a un viaje.
+- El sistema DEBE pedir nombre, categoría y ubicación como obligatorios.
+- La categoría DEBE ser una de las 7 predefinidas en `poi_categories`
+  (atracción, estación, alojamiento, gastronomía, naturaleza, cultura, otro).
+- El sistema DEBE resolver la ubicación con un buscador de direcciones
+  (Nominatim/OpenStreetMap), **no** carga manual de lat/lng.
+- CUANDO el buscador no encuentra resultados, el sistema DEBE mostrar un
+  mensaje claro y no permitir guardar sin una ubicación resuelta.
+- El sistema DEBE guardar la dirección resuelta junto con lat/lng.
+- El sistema DEBE permitir notas y enlace opcionales.
+- Los POI pertenecen a un viaje (`trip_id` obligatorio).
+
+### HU-2.1b — Editar y eliminar un POI ✅
+**Como** viajero, **quiero** modificar o borrar un POI guardado, **para** mantener la lista actualizada.
+
+- El sistema DEBE permitir editar todos los campos, re-geocodificando si cambia la dirección.
+- El sistema DEBE pedir confirmación antes de eliminar.
+- El sistema DEBE hacer borrado lógico (mismo patrón que el resto del proyecto).
+- CUANDO un POI tiene actividades asociadas (`activity_pois`, HU-2.3), el
+  sistema DEBE permitir igual el borrado lógico, sin tocar las asociaciones.
 
 ### HU-2.2 — Ver los POIs en un mapa 🔜
 **Como** viajero, **quiero** ver todos los POIs del viaje en un mapa, **para** entender la geografía del plan.

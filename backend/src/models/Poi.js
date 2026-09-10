@@ -5,9 +5,10 @@ const TABLE = 'pois_saved';
 const FIELDS = ['name', 'category_id', 'latitude', 'longitude', 'address', 'url', 'notes'];
 
 export class Poi {
-  static async create(data) {
+  /** Build a full pois_saved row from user data (no DB write). */
+  static rowFor(data) {
     const now = new Date().toISOString();
-    const row = {
+    return {
       id: randomUUID(),
       trip_id: data.trip_id,
       name: data.name,
@@ -24,6 +25,19 @@ export class Poi {
       deleted_at: null,
       version: 1,
     };
+  }
+
+  /** INSERT statement for a row from rowFor() — for use inside a dbBatch. */
+  static insertStmt(row) {
+    const cols = Object.keys(row);
+    return {
+      sql: `INSERT INTO ${TABLE} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+      args: Object.values(row),
+    };
+  }
+
+  static async create(data) {
+    const row = Poi.rowFor(data);
     await insertOne(TABLE, row);
     return row;
   }

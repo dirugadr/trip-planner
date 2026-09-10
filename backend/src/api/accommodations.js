@@ -6,6 +6,7 @@ import Accommodation from '../models/Accommodation.js';
 import Expense from '../models/Expense.js';
 import BudgetCategory from '../models/BudgetCategory.js';
 import Poi from '../models/Poi.js';
+import ActivityPoi from '../models/ActivityPoi.js';
 
 // POIs auto-generated from an accommodation get this category (HU-8.6).
 const ACCOMMODATION_POI_CATEGORY = 'cat_accommodation';
@@ -264,6 +265,7 @@ router.delete('/:id', async (req, res) => {
     const expense = await Expense.findByAccommodationId(req.params.id);
     if (expense) await Expense.delete(expense.id, true);
     await Activity.deleteByAccommodationId(req.params.id);
+    await ActivityPoi.deleteByAccommodationId(req.params.id);
     await Poi.deleteByAccommodationId(req.params.id);
     await Accommodation.delete(req.params.id, true);
 

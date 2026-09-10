@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import TripListPage from './pages/TripListPage.jsx';
 import TripDetailPage from './pages/TripDetailPage.jsx';
@@ -6,7 +7,11 @@ import AccommodationsPage from './pages/AccommodationsPage.jsx';
 import PoisPage from './pages/PoisPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
+import Spinner from './components/Spinner.jsx';
 import { useAuth } from './context/AuthContext.jsx';
+
+// Leaflet is heavy — keep it out of the main bundle.
+const MapPage = lazy(() => import('./pages/MapPage.jsx'));
 
 function HeaderUser() {
   const { status, user, logout } = useAuth();
@@ -71,6 +76,16 @@ export default function App() {
             element={
               <RequireAuth>
                 <PoisPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trips/:id/mapa"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<Spinner />}>
+                  <MapPage />
+                </Suspense>
               </RequireAuth>
             }
           />

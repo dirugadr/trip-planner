@@ -136,11 +136,20 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - CUANDO un POI tiene actividades asociadas (`activity_pois`, HU-2.3), el
   sistema DEBE permitir igual el borrado lógico, sin tocar las asociaciones.
 
-### HU-2.2 — Ver los POIs en un mapa 🔜
+### HU-2.2 — Ver los POIs en un mapa ✅
 **Como** viajero, **quiero** ver todos los POIs del viaje en un mapa, **para** entender la geografía del plan.
 
-- El sistema DEBE mostrar un marcador por POI, coloreado según su categoría.
-- CUANDO se hace clic en un marcador, el sistema DEBE mostrar los datos del POI.
+- El sistema DEBE mostrar los POIs (manuales y generados por alojamiento) en
+  una pantalla nueva del viaje (`/trips/:id/mapa`), con Leaflet + tiles de
+  OpenStreetMap.
+- El sistema DEBE mostrar un marcador por POI, coloreado según su categoría
+  (mismo mapeo que la lista, en `utils/poiCategories.js`); los generados por
+  alojamiento no se distinguen.
+- CUANDO se hace clic en un marcador, el sistema DEBE mostrar los datos del POI
+  (nombre, categoría, dirección, notas, enlace) en un popup.
+- El mapa DEBE encuadrar automáticamente todos los POIs del viaje.
+- CUANDO el viaje no tiene POIs, el sistema DEBE mostrar un estado vacío con
+  un enlace para agregar el primero.
 
 ### HU-2.3 — Asociar POIs a una actividad 🔜
 **Como** viajero, **quiero** vincular uno o más POIs a una actividad, **para** saber a dónde ir.

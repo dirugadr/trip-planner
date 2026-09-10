@@ -14,6 +14,7 @@ import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
 import PoiForm from '../components/PoiForm.jsx';
+import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
 
 export default function PoisPage() {
   const { id } = useParams();
@@ -91,8 +92,8 @@ export default function PoisPage() {
                 <h3 style={{ marginBottom: '0.15rem' }}>
                   {p.accommodation_id && '🏨 '}
                   {p.name}{' '}
-                  <span className="tag" style={p.category_color ? { color: p.category_color } : undefined}>
-                    {p.category_name}
+                  <span className="tag" style={{ color: categoryColor(p) }}>
+                    {categoryEmoji(p)} {p.category_name}
                   </span>
                 </h3>
                 {p.accommodation_id && (

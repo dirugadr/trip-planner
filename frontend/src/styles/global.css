@@ -429,3 +429,19 @@ h3 {
 .poi-results button:hover {
   background: var(--bg);
 }
+
+/* Trip map (HU-2.2) */
+.map-wrap {
+  height: 70vh;
+  min-height: 320px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.leaflet-container {
+  font: inherit;
+}
+.poi-pin {
+  background: none;
+  border: none;
+}

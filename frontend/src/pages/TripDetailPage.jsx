@@ -19,6 +19,7 @@ import TripForm from '../components/TripForm.jsx';
 import DayForm from '../components/DayForm.jsx';
 import ActivityForm from '../components/ActivityForm.jsx';
 import ActivityPoisModal from '../components/ActivityPoisModal.jsx';
+import TripTabs from '../components/TripTabs.jsx';
 
 export default function TripDetailPage() {
   const { id } = useParams();
@@ -119,6 +120,8 @@ export default function TripDetailPage() {
         </Link>
       </div>
 
+      <TripTabs tripId={id} />
+
       {actionError && <ErrorMessage error={actionError} />}
 
       <div className="card">
@@ -129,21 +132,6 @@ export default function TripDetailPage() {
             {trip.description && <p style={{ marginBottom: 0 }}>{trip.description}</p>}
           </div>
           <div className="activity-actions">
-            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/alojamientos`}>
-              Alojamientos
-            </Link>
-            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/lugares`}>
-              Lugares
-            </Link>
-            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/mapa`}>
-              Mapa
-            </Link>
-            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/documentos`}>
-              Documentos
-            </Link>
-            <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/budget`}>
-              Presupuesto
-            </Link>
             <button className="btn btn-secondary btn-sm" onClick={() => setEditingTrip(true)}>
               Editar
             </button>
@@ -170,7 +158,6 @@ export default function TripDetailPage() {
       </div>
 
       <h2 style={{ margin: '1.5rem 0 0.75rem' }}>Itinerario</h2>
-
       {trip.days.map((day) => (
         <div className="card day-card" key={day.id}>
           <div className="row-between">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useAsync } from '../hooks/useAsync.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { getTrip } from '../services/trips.js';
@@ -14,6 +14,7 @@ import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
 import PoiForm from '../components/PoiForm.jsx';
+import TripTabs from '../components/TripTabs.jsx';
 import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
 
 export default function PoisPage() {
@@ -64,11 +65,7 @@ export default function PoisPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: '1rem' }}>
-        <Link to={`/trips/${id}`} className="btn-link">
-          ← Volver al viaje
-        </Link>
-      </div>
+      <TripTabs tripId={id} />
 
       {actionError && <ErrorMessage error={actionError} />}
 

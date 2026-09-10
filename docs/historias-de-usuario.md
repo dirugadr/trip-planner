@@ -263,36 +263,50 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 ## Épica 6 — Documentos
 
 > Adjuntar archivos al viaje o a una actividad (reservas, pasajes, vouchers,
-> boarding pass, entradas). Tabla ya existente: `documents` (necesita columna
-> `activity_id` opcional para el vínculo con actividades — ver HU-6.4).
+> boarding pass, entradas). Tabla `documents` (ya tenía `activity_id`).
+> Storage: **Vercel Blob** en modo privado; cada descarga pasa por
+> `GET /api/documents/:id/download` (detrás de `requireAuth`) que hace streaming
+> del archivo — la URL del blob nunca sale del servidor.
 
-### HU-6.1 — Adjuntar un documento 💭
-**Como** viajero, **quiero** subir un archivo a un viaje o actividad, **para** tener la documentación junta.
+### HU-6.1 — Adjuntar un documento ✅
+**Como** viajero, **quiero** subir un archivo a un viaje (y opcionalmente a una actividad), **para** tener la documentación junta.
 
-- El sistema DEBE guardar título, nombre de archivo, tipo y tamaño.
-- El almacenamiento del archivo DEBE ser un blob store (Vercel Blob / S3), no el filesystem (Vercel es efímero).
+- El sistema DEBE aceptar solo PDF, Word (.doc/.docx) e imágenes (JPG/PNG),
+  validando el **tipo MIME real** (magic bytes), no solo la extensión.
+- El sistema DEBE rechazar archivos > 5 MB **antes** de subirlos a Blob.
+- El sistema DEBE guardar en `documents`: título, nombre original, tipo MIME,
+  tamaño, URL del blob, `trip_id` (obligatorio) y `activity_id` (opcional,
+  validado contra el mismo viaje).
+- Sin `BLOB_TP_READ_WRITE_TOKEN`, los endpoints de documentos responden 503
+  (fail-closed) y el resto de la app sigue funcionando.
 
-### HU-6.2 — Ver y descargar documentos 💭
+### HU-6.2 — Ver y descargar documentos ✅
 **Como** viajero, **quiero** abrir o bajar los documentos adjuntos, **para** consultarlos.
 
-### HU-6.3 — Eliminar un documento 💭
-- El sistema DEBE hacer borrado lógico y, aparte, limpiar el blob.
+- El sistema DEBE listar los documentos del viaje (`GET /api/trips/:id/documents`),
+  incluyendo el título de la actividad asociada si corresponde.
+- El sistema DEBE permitir descargar cada documento; el archivo se sirve por
+  streaming a través de la API autenticada (store privado).
 
-### HU-6.4 — Documentos asociados a una actividad 💭
+### HU-6.3 — Eliminar un documento ✅
+- El sistema DEBE pedir confirmación.
+- El sistema DEBE hacer **borrado físico**: elimina la fila de `documents` **y**
+  el archivo en Vercel Blob (no tiene sentido guardar un blob huérfano).
+
+### HU-6.4 — Documentos asociados a una actividad 🟡
 **Como** viajero, **quiero** adjuntar uno o más documentos a una actividad
 (p. ej. los boarding pass de la actividad "Vuelo ..." o las entradas a un museo),
 **para** tenerlos a mano en el momento de esa actividad.
 
-- Una actividad PUEDE tener 0..N documentos asociados (`documents.activity_id`).
-- DEBE haber dos formas de cargar un documento:
-  1. **Independiente**: una pantalla propia (CRUD), donde el documento se asocia
-     al viaje y, opcionalmente, a una actividad de ese viaje.
-  2. **Desde la actividad**: al crear o editar una actividad, una sección para
-     subir / quitar sus documentos sin salir del formulario.
-- En la ficha del día, cada actividad DEBE indicar si tiene documentos adjuntos
-  y permitir abrirlos / descargarlos.
-- Eliminar una actividad DEBE hacer borrado lógico de sus documentos (y limpiar
-  los blobs, igual que HU-6.3).
+- ✅ Una actividad PUEDE tener 0..N documentos asociados (`documents.activity_id`).
+- ✅ **Independiente**: la pantalla de Documentos permite elegir, al subir, una
+  actividad del viaje a la que asociar el archivo.
+- 🔜 **Desde la actividad**: sección para subir/quitar documentos dentro del
+  formulario de actividad, sin salir de él.
+- 🔜 En la ficha del día, indicar si una actividad tiene documentos adjuntos
+  y permitir abrirlos / descargarlos desde ahí.
+- 🔜 Eliminar una actividad DEBE borrar sus documentos (fila + blob, como HU-6.3).
+  Hoy el documento queda: sigue en el viaje pero sin actividad asociada.
 
 ---
 

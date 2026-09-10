@@ -13,6 +13,7 @@ import expensesRouter from './api/expenses.js';
 import paymentMethodsRouter from './api/paymentMethods.js';
 import accommodationsRouter from './api/accommodations.js';
 import poisRouter from './api/pois.js';
+import documentsRouter from './api/documents.js';
 
 const app = express();
 
@@ -83,6 +84,8 @@ app.use('/api/payment-methods', paymentMethodsRouter);
 app.use('/api/accommodations', accommodationsRouter);
 // POIs (HU-2.1): /api/poi-categories, /api/trips/:tripId/pois, /api/pois/:id
 app.use('/api', poisRouter);
+// Documentos (Épica 6): /api/trips/:tripId/documents, /api/documents/:id
+app.use('/api', documentsRouter);
 
 // ============================================
 // 404 Handler

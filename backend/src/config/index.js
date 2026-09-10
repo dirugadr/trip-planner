@@ -52,6 +52,12 @@ export const config = {
     clientId: process.env.GOOGLE_CLIENT_ID_TP || ''
   },
 
+  blob: {
+    // Vercel Blob RW token (private store). Named BLOB_TP_READ_WRITE_TOKEN in
+    // Vercel; passed explicitly to the SDK since it isn't the SDK's default name.
+    token: process.env.BLOB_TP_READ_WRITE_TOKEN || ''
+  },
+
   auth: {
     allowedEmails
   },
@@ -73,6 +79,16 @@ export const config = {
 export function authConfigError() {
   if (config.jwt.insecure) return 'Auth mal configurada: falta JWT_SECRET_TP en el servidor.';
   if (!config.google.clientId) return 'Auth mal configurada: falta GOOGLE_CLIENT_ID_TP en el servidor.';
+  return null;
+}
+
+/**
+ * Returns a user-facing message when document storage isn't configured, else
+ * null. Lets the documents endpoints fail closed (503) without touching the
+ * rest of the app.
+ */
+export function blobConfigError() {
+  if (!config.blob.token) return 'Documentos no disponibles: falta BLOB_TP_READ_WRITE_TOKEN en el servidor.';
   return null;
 }
 

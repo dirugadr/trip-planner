@@ -5,6 +5,7 @@ import TripDetailPage from './pages/TripDetailPage.jsx';
 import BudgetPage from './pages/BudgetPage.jsx';
 import AccommodationsPage from './pages/AccommodationsPage.jsx';
 import PoisPage from './pages/PoisPage.jsx';
+import DocumentsPage from './pages/DocumentsPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Spinner from './components/Spinner.jsx';
@@ -86,6 +87,14 @@ export default function App() {
                 <Suspense fallback={<Spinner />}>
                   <MapPage />
                 </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trips/:id/documentos"
+            element={
+              <RequireAuth>
+                <DocumentsPage />
               </RequireAuth>
             }
           />

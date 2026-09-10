@@ -112,4 +112,23 @@ export async function apiDelete(path) {
   }
 }
 
+/** POST multipart/form-data (file uploads). Let the browser set the boundary. */
+export async function apiUpload(path, formData) {
+  try {
+    return unwrap(await client.post(path, formData, { headers: { 'Content-Type': undefined } }));
+  } catch (e) {
+    throw toError(e);
+  }
+}
+
+/** GET a binary response as a Blob (authenticated download). */
+export async function apiDownloadBlob(path) {
+  try {
+    const res = await client.get(path, { responseType: 'blob' });
+    return res.data;
+  } catch (e) {
+    throw toError(e);
+  }
+}
+
 export default client;

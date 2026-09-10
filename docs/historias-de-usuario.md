@@ -34,6 +34,7 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 **Como** viajero, **quiero** ver la lista de mis viajes, **para** elegir cuál abrir.
 
 - El sistema DEBE listar los viajes no eliminados con nombre y rango de fechas.
+- El sistema DEBE ordenarlos por fecha de inicio ascendente (el próximo viaje primero).
 - CUANDO no hay viajes, el sistema DEBE mostrar un estado vacío con acción para crear uno.
 
 ### HU-1.3 — Ver el itinerario de un viaje ✅

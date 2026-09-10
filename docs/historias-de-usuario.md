@@ -1,7 +1,8 @@
 # Historias de Usuario — Trip Planner
 
-Estado del backlog por épica. La app es de un solo usuario (sin autenticación),
-así que el rol es siempre **viajero**.
+Estado del backlog por épica. La app tiene un único rol, **viajero**: las
+personas habilitadas (Épica 7) comparten los mismos datos, no hay dueño por
+viaje.
 
 **Leyenda de estado**
 
@@ -328,7 +329,8 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 **Como** dueño, **quiero** poder sacarle el acceso a alguien, **para** responder a bajas o incidentes.
 
 - CUANDO quito un correo de `ALLOWED_EMAILS`, el sistema DEBE negar el acceso en el próximo login.
-- Los tokens ya emitidos siguen válidos hasta expirar (expiración corta lo acota). *(🔜 opción: revalidar la allowlist en cada request para revocación inmediata.)*
+- `requireAuth` revalida la allowlist en cada request, así que quitar un correo
+  corta el acceso al siguiente request, sin esperar a que expire el token *(ver HU-7.11)*.
 
 ### HU-7.7 — No arrancar inseguro ✅
 **Como** dueño, **quiero** que la app se niegue a correr mal configurada, **para** no exponerme por un descuido.

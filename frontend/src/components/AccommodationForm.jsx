@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { formatMoney } from '../utils/format.js';
+import AddressSearchField from './AddressSearchField.jsx';
 
-function initFrom(a, existingExpense) {
+function initFrom(a, existingExpense, linkedPoi) {
   return {
     name: a?.name ?? '',
     check_in: a?.check_in ?? '',
@@ -11,6 +12,8 @@ function initFrom(a, existingExpense) {
     phone: a?.phone ?? '',
     email: a?.email ?? '',
     booking_url: a?.booking_url ?? '',
+    latitude: linkedPoi?.latitude ?? null,
+    longitude: linkedPoi?.longitude ?? null,
     pay_amount: existingExpense?.amount != null ? String(existingExpense.amount) : '',
     pay_category_id: existingExpense?.category_id ?? '',
     pay_method_id: existingExpense?.payment_method_id ?? '',
@@ -20,17 +23,19 @@ function initFrom(a, existingExpense) {
 export default function AccommodationForm({
   initial,
   linkedExpense,
+  linkedPoi,
   categories,
   paymentMethods,
   currency,
   onSubmit,
   onCancel,
 }) {
-  const [form, setForm] = useState(initFrom(initial, linkedExpense));
+  const [form, setForm] = useState(initFrom(initial, linkedExpense, linkedPoi));
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const located = form.latitude != null && form.longitude != null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,6 +71,8 @@ export default function AccommodationForm({
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
       booking_url: form.booking_url.trim() || null,
+      latitude: form.latitude,
+      longitude: form.longitude,
       payment: {
         amount: form.pay_amount === '' ? '' : Number(form.pay_amount),
         category_id: form.pay_category_id || null,
@@ -102,9 +109,24 @@ export default function AccommodationForm({
         </div>
       </div>
 
-      <div className="field">
-        <label htmlFor="af-addr">Dirección *</label>
-        <input id="af-addr" value={form.address} onChange={set('address')} />
+      <AddressSearchField
+        id="af-addr"
+        label="Dirección * (buscá y elegí un resultado para ubicarlo en el mapa)"
+        initialAddress={initial?.address ?? ''}
+        onResolve={({ address, latitude, longitude }) =>
+          setForm((f) => ({ ...f, address, latitude, longitude }))
+        }
+        onInvalidate={(text) =>
+          setForm((f) => ({ ...f, address: text, latitude: null, longitude: null }))
+        }
+      />
+      <div
+        className="muted poi-search-hint"
+        style={{ marginTop: '-0.4rem', marginBottom: '0.9rem' }}
+      >
+        {located
+          ? `📍 ${Number(form.latitude).toFixed(5)}, ${Number(form.longitude).toFixed(5)} — se guardará como lugar en el mapa`
+          : 'Si no elegís un resultado, se guarda igual pero no aparece en el mapa.'}
       </div>
 
       <div className="field-row">

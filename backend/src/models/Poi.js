@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { insertOne, updateOne, deleteOne, findById, dbAll } from '../db/database.js';
+import { insertOne, updateOne, deleteOne, findById, dbAll, dbRun } from '../db/database.js';
 
 const TABLE = 'pois_saved';
 const FIELDS = ['name', 'category_id', 'latitude', 'longitude', 'address', 'url', 'notes'];
@@ -18,6 +18,7 @@ export class Poi {
       address: data.address ?? null,
       url: data.url ?? null,
       notes: data.notes ?? null,
+      accommodation_id: data.accommodation_id ?? null,
       created_at: now,
       updated_at: now,
       deleted_at: null,
@@ -39,6 +40,25 @@ export class Poi {
         WHERE p.trip_id = ? AND p.deleted_at IS NULL
         ORDER BY p.created_at ASC`,
       [tripId]
+    );
+  }
+
+  /** The POI auto-generated from an accommodation (HU-8.6), if any. */
+  static async findLinkedByAccommodation(accommodationId) {
+    const rows = await dbAll(
+      `SELECT * FROM ${TABLE}
+        WHERE accommodation_id = ? AND deleted_at IS NULL
+        LIMIT 1`,
+      [accommodationId]
+    );
+    return rows[0] || null;
+  }
+
+  static async deleteByAccommodationId(accommodationId) {
+    await dbRun(
+      `UPDATE ${TABLE} SET deleted_at = datetime('now')
+        WHERE accommodation_id = ? AND deleted_at IS NULL`,
+      [accommodationId]
     );
   }
 

@@ -4,6 +4,7 @@ import { useAsync } from '../hooks/useAsync.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { getTrip } from '../services/trips.js';
 import { listBudgetCategories, listPaymentMethods, listExpenses } from '../services/budget.js';
+import { listPois } from '../services/pois.js';
 import {
   listAccommodations,
   createAccommodation,
@@ -27,12 +28,14 @@ export default function AccommodationsPage() {
         listPaymentMethods(),
         listExpenses(id),
         getTrip(id),
-      ]).then(([accommodations, categories, paymentMethods, expenses, trip]) => ({
+        listPois(id),
+      ]).then(([accommodations, categories, paymentMethods, expenses, trip, pois]) => ({
         accommodations,
         categories,
         paymentMethods,
         expenses,
         trip,
+        pois,
       })),
     [id]
   );
@@ -54,10 +57,13 @@ export default function AccommodationsPage() {
   if (loading) return <Spinner />;
   if (error) return <ErrorMessage error={error} onRetry={reload} />;
 
-  const { accommodations, categories, paymentMethods, expenses, trip } = data;
+  const { accommodations, categories, paymentMethods, expenses, trip, pois } = data;
   const currency = trip.currency_code || 'USD';
   const expenseByAcc = new Map(
     expenses.filter((e) => e.accommodation_id).map((e) => [e.accommodation_id, e])
+  );
+  const poiByAcc = new Map(
+    pois.filter((p) => p.accommodation_id).map((p) => [p.accommodation_id, p])
   );
 
   const handleSubmit = (payload) =>
@@ -165,6 +171,7 @@ export default function AccommodationsPage() {
           <AccommodationForm
             initial={modal.accommodation}
             linkedExpense={modal.accommodation ? expenseByAcc.get(modal.accommodation.id) : null}
+            linkedPoi={modal.accommodation ? poiByAcc.get(modal.accommodation.id) : null}
             categories={categories}
             paymentMethods={paymentMethods}
             currency={currency}

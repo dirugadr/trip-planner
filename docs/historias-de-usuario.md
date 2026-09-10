@@ -224,8 +224,9 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 
 ## Épica 6 — Documentos
 
-> Adjuntar archivos al viaje o a una actividad (reservas, pasajes, vouchers).
-> Tabla ya existente: `documents`.
+> Adjuntar archivos al viaje o a una actividad (reservas, pasajes, vouchers,
+> boarding pass, entradas). Tabla ya existente: `documents` (necesita columna
+> `activity_id` opcional para el vínculo con actividades — ver HU-6.4).
 
 ### HU-6.1 — Adjuntar un documento 💭
 **Como** viajero, **quiero** subir un archivo a un viaje o actividad, **para** tener la documentación junta.
@@ -238,6 +239,22 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 
 ### HU-6.3 — Eliminar un documento 💭
 - El sistema DEBE hacer borrado lógico y, aparte, limpiar el blob.
+
+### HU-6.4 — Documentos asociados a una actividad 💭
+**Como** viajero, **quiero** adjuntar uno o más documentos a una actividad
+(p. ej. los boarding pass de la actividad "Vuelo ..." o las entradas a un museo),
+**para** tenerlos a mano en el momento de esa actividad.
+
+- Una actividad PUEDE tener 0..N documentos asociados (`documents.activity_id`).
+- DEBE haber dos formas de cargar un documento:
+  1. **Independiente**: una pantalla propia (CRUD), donde el documento se asocia
+     al viaje y, opcionalmente, a una actividad de ese viaje.
+  2. **Desde la actividad**: al crear o editar una actividad, una sección para
+     subir / quitar sus documentos sin salir del formulario.
+- En la ficha del día, cada actividad DEBE indicar si tiene documentos adjuntos
+  y permitir abrirlos / descargarlos.
+- Eliminar una actividad DEBE hacer borrado lógico de sus documentos (y limpiar
+  los blobs, igual que HU-6.3).
 
 ---
 

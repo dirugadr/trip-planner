@@ -89,11 +89,15 @@ export default function PoisPage() {
             <div className="row-between">
               <div>
                 <h3 style={{ marginBottom: '0.15rem' }}>
+                  {p.accommodation_id && '🏨 '}
                   {p.name}{' '}
                   <span className="tag" style={p.category_color ? { color: p.category_color } : undefined}>
                     {p.category_name}
                   </span>
                 </h3>
+                {p.accommodation_id && (
+                  <div className="muted">Generado por el alojamiento</div>
+                )}
                 {p.address && <div className="muted">📍 {p.address}</div>}
                 <div className="muted">
                   {Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}
@@ -111,9 +115,11 @@ export default function PoisPage() {
                 <button className="btn btn-secondary btn-sm" onClick={() => setModal({ poi: p })}>
                   Editar
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p)}>
-                  Eliminar
-                </button>
+                {!p.accommodation_id && (
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p)}>
+                    Eliminar
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -5,6 +5,10 @@ import Activity from '../models/Activity.js';
 import Accommodation from '../models/Accommodation.js';
 import Expense from '../models/Expense.js';
 import BudgetCategory from '../models/BudgetCategory.js';
+import Poi from '../models/Poi.js';
+
+// POIs auto-generated from an accommodation get this category (HU-8.6).
+const ACCOMMODATION_POI_CATEGORY = 'cat_accommodation';
 
 const router = express.Router();
 
@@ -136,6 +140,52 @@ async function syncActivities(accommodation, trip) {
   }
 }
 
+/**
+ * Keep a POI (category "alojamiento") in sync with the accommodation so it
+ * shows up on the trip map without loading it twice (HU-8.6). Name + location
+ * always flow from the accommodation; the frontend geocodes the address (same
+ * Nominatim mechanism as HU-2.1) and sends resolved lat/lng.
+ */
+async function syncPoi(accommodation, coords) {
+  const existing = await Poi.findLinkedByAccommodation(accommodation.id);
+
+  const lat = Number(coords?.latitude);
+  const lng = Number(coords?.longitude);
+  const hasCoords =
+    Number.isFinite(lat) && lat >= -90 && lat <= 90 &&
+    Number.isFinite(lng) && lng >= -180 && lng <= 180;
+
+  if (!hasCoords) {
+    // No resolved location. Don't drop an existing POI, but keep its name /
+    // address from going stale after an edit.
+    if (existing) {
+      await Poi.update(existing.id, {
+        name: accommodation.name,
+        address: accommodation.address,
+      });
+    }
+    return;
+  }
+
+  const fields = {
+    name: accommodation.name,
+    category_id: ACCOMMODATION_POI_CATEGORY,
+    latitude: lat,
+    longitude: lng,
+    address: accommodation.address,
+  };
+
+  if (existing) {
+    await Poi.update(existing.id, fields);
+  } else {
+    await Poi.create({
+      trip_id: accommodation.trip_id,
+      accommodation_id: accommodation.id,
+      ...fields,
+    });
+  }
+}
+
 // GET /api/accommodations?trip_id=...
 router.get('/', async (req, res) => {
   try {
@@ -150,7 +200,7 @@ router.get('/', async (req, res) => {
 // POST /api/accommodations
 router.post('/', async (req, res) => {
   try {
-    const { trip_id, payment } = req.body;
+    const { trip_id, payment, latitude, longitude } = req.body;
     if (!trip_id) return res.status(400).json({ success: false, error: 'trip_id es obligatorio' });
 
     const trip = await Trip.findById(trip_id);
@@ -167,6 +217,7 @@ router.post('/', async (req, res) => {
       return res.status(e.status || 500).json({ success: false, error: e.message });
     }
     await syncActivities(accommodation, trip);
+    await syncPoi(accommodation, { latitude, longitude });
 
     res.status(201).json({ success: true, data: accommodation });
   } catch (error) {
@@ -196,6 +247,7 @@ router.put('/:id', async (req, res) => {
       return res.status(e.status || 500).json({ success: false, error: e.message });
     }
     await syncActivities(updated, trip);
+    await syncPoi(updated, req.body);
 
     res.json({ success: true, data: updated });
   } catch (error) {
@@ -203,7 +255,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/accommodations/:id - soft delete accommodation + linked expense + linked activities
+// DELETE /api/accommodations/:id - soft delete accommodation + linked expense + activities + POI
 router.delete('/:id', async (req, res) => {
   try {
     const accommodation = await Accommodation.findById(req.params.id);
@@ -212,6 +264,7 @@ router.delete('/:id', async (req, res) => {
     const expense = await Expense.findByAccommodationId(req.params.id);
     if (expense) await Expense.delete(expense.id, true);
     await Activity.deleteByAccommodationId(req.params.id);
+    await Poi.deleteByAccommodationId(req.params.id);
     await Accommodation.delete(req.params.id, true);
 
     res.json({ success: true, message: 'Alojamiento eliminado' });

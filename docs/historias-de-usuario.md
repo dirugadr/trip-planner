@@ -378,6 +378,8 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - La ciudad de un día = la de todo alojamiento cuyo rango `[check_in, check_out]`
   (por fecha) contiene ese día. Normalmente una; en un día de transición
   (se deja uno y se entra en otro) son dos.
+- Cada alojamiento con dirección resuelta mantiene un POI vinculado en el mapa
+  (HU-8.6), con el mismo patrón que el gasto y las actividades de check-in/out.
 
 ### HU-8.1 — Alta de alojamiento ✅
 **Como** viajero, **quiero** cargar un alojamiento con sus datos, **para** tener todo junto.
@@ -427,3 +429,19 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - CUANDO la fecha de entrada/salida cae fuera del rango del viaje (no hay día),
   esa actividad se omite.
 - El itinerario DEBE marcar estas actividades como generadas por el alojamiento.
+
+### HU-8.6 — POI vinculado al alojamiento ✅
+**Como** viajero, **quiero** que mi alojamiento aparezca automáticamente como POI en el mapa, **para** verlo junto con el resto de los lugares sin cargarlo dos veces.
+
+- AL crear o editar un alojamiento, el sistema DEBE mantener un POI vinculado
+  (`pois_saved.accommodation_id`) con categoría "alojamiento", nombre = nombre
+  del alojamiento y ubicación = la que resuelve el buscador de direcciones del
+  formulario (mismo mecanismo Nominatim que HU-2.1).
+- Editar el nombre o la dirección DEBE actualizar el POI en su lugar, sin
+  duplicarlo; si no se resolvió una ubicación, el alojamiento se guarda igual
+  pero sin POI.
+- AL eliminar el alojamiento, el sistema DEBE borrar (lógico) el POI vinculado.
+- El POI vinculado aparece en `GET /api/trips/:id/pois` como cualquier otro,
+  marcado "generado por el alojamiento"; en la pantalla de Lugares su nombre y
+  ubicación son de solo lectura (solo se editan notas y enlace) y no se puede
+  borrar desde ahí.

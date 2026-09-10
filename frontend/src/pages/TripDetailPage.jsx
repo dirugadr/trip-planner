@@ -20,6 +20,7 @@ import TripForm from '../components/TripForm.jsx';
 import DayForm from '../components/DayForm.jsx';
 import ActivityForm from '../components/ActivityForm.jsx';
 import ActivityPoisModal from '../components/ActivityPoisModal.jsx';
+import SmartRouteModal from '../components/SmartRouteModal.jsx';
 import TripTabs from '../components/TripTabs.jsx';
 
 export default function TripDetailPage() {
@@ -31,6 +32,7 @@ export default function TripDetailPage() {
   const [dayModal, setDayModal] = useState(null); // day being edited
   const [activityModal, setActivityModal] = useState(null); // { dayId, activity? }
   const [poisModal, setPoisModal] = useState(null); // activity whose POIs are being managed
+  const [smartRouteDay, setSmartRouteDay] = useState(null); // day for the smart-route suggestion
   const [actionError, setActionError] = useState(null);
   const [busyActivityId, setBusyActivityId] = useState(null);
   const [confirmNode, confirm] = useConfirm();
@@ -176,6 +178,11 @@ export default function TripDetailPage() {
               <button className="btn btn-secondary btn-sm" onClick={() => setDayModal(day)}>
                 Editar día
               </button>
+              {day.activities.filter((a) => a.pois?.length > 0).length >= 2 && (
+                <button className="btn btn-secondary btn-sm" onClick={() => setSmartRouteDay(day)}>
+                  ✨ Sugerir recorrido
+                </button>
+              )}
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setActivityModal({ dayId: day.id })}
@@ -337,6 +344,14 @@ export default function TripDetailPage() {
           tripId={id}
           onChanged={reload}
           onClose={() => setPoisModal(null)}
+        />
+      )}
+
+      {smartRouteDay && (
+        <SmartRouteModal
+          day={smartRouteDay}
+          onApplied={reload}
+          onClose={() => setSmartRouteDay(null)}
         />
       )}
     </div>

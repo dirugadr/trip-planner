@@ -58,6 +58,12 @@ export const config = {
     token: process.env.BLOB_TP_READ_WRITE_TOKEN || ''
   },
 
+  anthropic: {
+    // Anthropic API key for the smart-route suggestion (HU-2.5). Backend-only —
+    // never exposed to the frontend. Named ANTHROPIC_API_KEY_TP in Vercel.
+    apiKey: process.env.ANTHROPIC_API_KEY_TP || ''
+  },
+
   auth: {
     allowedEmails
   },
@@ -89,6 +95,12 @@ export function authConfigError() {
  */
 export function blobConfigError() {
   if (!config.blob.token) return 'Documentos no disponibles: falta BLOB_TP_READ_WRITE_TOKEN en el servidor.';
+  return null;
+}
+
+/** Returns a message when the smart-route feature isn't configured, else null. */
+export function anthropicConfigError() {
+  if (!config.anthropic.apiKey) return 'Sugerencia de recorrido no disponible: falta ANTHROPIC_API_KEY_TP en el servidor.';
   return null;
 }
 

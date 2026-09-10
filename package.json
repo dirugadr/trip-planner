@@ -11,6 +11,7 @@
     "frontend:dev": "npm --prefix frontend run dev"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
     "@libsql/client": "^0.18.0",
     "@vercel/blob": "^2.8.0",
     "cors": "^2.8.6",

@@ -11,12 +11,14 @@ import {
   moveActivity,
 } from '../services/activities.js';
 import { formatDayHeading, formatDateRange, formatDuration, formatMoney } from '../utils/format.js';
+import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
 import TripForm from '../components/TripForm.jsx';
 import DayForm from '../components/DayForm.jsx';
 import ActivityForm from '../components/ActivityForm.jsx';
+import ActivityPoisModal from '../components/ActivityPoisModal.jsx';
 
 export default function TripDetailPage() {
   const { id } = useParams();
@@ -26,6 +28,7 @@ export default function TripDetailPage() {
   const [editingTrip, setEditingTrip] = useState(false);
   const [dayModal, setDayModal] = useState(null); // day being edited
   const [activityModal, setActivityModal] = useState(null); // { dayId, activity? }
+  const [poisModal, setPoisModal] = useState(null); // activity whose POIs are being managed
   const [actionError, setActionError] = useState(null);
   const [busyActivityId, setBusyActivityId] = useState(null);
   const [confirmNode, confirm] = useConfirm();
@@ -251,6 +254,15 @@ export default function TripDetailPage() {
                         </>
                       )}
                     </div>
+                    {activity.pois?.length > 0 && (
+                      <div className="activity-pois">
+                        {activity.pois.map((p) => (
+                          <span key={p.id} className="tag" style={{ color: categoryColor(p) }}>
+                            {categoryEmoji(p)} {p.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="activity-actions">
                     <button
@@ -270,6 +282,12 @@ export default function TripDetailPage() {
                       title="Bajar"
                     >
                       ↓
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setPoisModal(activity)}
+                    >
+                      Lugares{activity.pois?.length ? ` (${activity.pois.length})` : ''}
                     </button>
                     <button
                       className="btn btn-secondary btn-sm"
@@ -320,6 +338,15 @@ export default function TripDetailPage() {
             onCancel={() => setActivityModal(null)}
           />
         </Modal>
+      )}
+
+      {poisModal && (
+        <ActivityPoisModal
+          activity={poisModal}
+          tripId={id}
+          onChanged={reload}
+          onClose={() => setPoisModal(null)}
+        />
       )}
     </div>
   );

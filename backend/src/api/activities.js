@@ -1,5 +1,9 @@
 import express from 'express';
 import Activity from '../models/Activity.js';
+import ActivityPoi from '../models/ActivityPoi.js';
+import Poi from '../models/Poi.js';
+import { validatePoiPayload } from './pois.js';
+import { dbBatch } from '../db/database.js';
 
 const router = express.Router();
 
@@ -64,8 +68,7 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Get associated POIs
-    const pois = await Activity.getAssociatedPois(activity.id);
+    const pois = await ActivityPoi.list(activity.id);
 
     res.json({
       success: true,
@@ -147,6 +150,7 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
+    await ActivityPoi.deleteByActivityId(req.params.id); // drop POI associations (HU-2.3)
     await Activity.delete(req.params.id, true); // soft delete
 
     res.json({
@@ -175,6 +179,112 @@ router.post('/:id/move', async (req, res) => {
     }
 
     res.json({ success: true, data: moved });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// Associated POIs (HU-2.3)
+// ============================================
+
+// GET /api/activities/:activityId/pois - list associated POIs, ordered
+router.get('/:activityId/pois', async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.activityId);
+    if (!activity) return res.status(404).json({ success: false, error: 'Activity not found' });
+    res.json({ success: true, data: await ActivityPoi.list(activity.id) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/activities/:activityId/pois - associate an existing POI ({ poi_id })
+router.post('/:activityId/pois', async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.activityId);
+    if (!activity) return res.status(404).json({ success: false, error: 'Activity not found' });
+
+    const { poi_id } = req.body;
+    if (!poi_id) return res.status(400).json({ success: false, error: 'poi_id es obligatorio' });
+
+    const poi = await Poi.findById(poi_id);
+    if (!poi) return res.status(404).json({ success: false, error: 'POI not found' });
+
+    const tripId = await Activity.tripIdOf(activity.id);
+    if (poi.trip_id !== tripId) {
+      return res.status(400).json({ success: false, error: 'El lugar no pertenece a este viaje' });
+    }
+
+    if (await ActivityPoi.exists(activity.id, poi_id)) {
+      return res.status(409).json({ success: false, error: 'Ese lugar ya está asociado a la actividad' });
+    }
+
+    await ActivityPoi.associate(activity.id, poi_id);
+    res.status(201).json({ success: true, data: await ActivityPoi.list(activity.id) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/activities/:activityId/pois/new - create a POI and associate it, atomically
+router.post('/:activityId/pois/new', async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.activityId);
+    if (!activity) return res.status(404).json({ success: false, error: 'Activity not found' });
+
+    const tripId = await Activity.tripIdOf(activity.id);
+    if (!tripId) return res.status(404).json({ success: false, error: 'Trip not found' });
+
+    const { errors, out } = await validatePoiPayload(req.body);
+    if (!('latitude' in out)) errors.push('Falta la ubicación');
+    if (errors.length) return res.status(400).json({ success: false, error: errors.join('. ') });
+
+    // One transaction: create the POI + its association. If either fails, neither lands.
+    const row = Poi.rowFor({ trip_id: tripId, ...out });
+    await dbBatch([
+      Poi.insertStmt(row),
+      ActivityPoi.insertStmt(activity.id, row.id, await ActivityPoi.nextSequence(activity.id)),
+    ]);
+
+    res.status(201).json({ success: true, data: await ActivityPoi.list(activity.id) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/activities/:activityId/pois/reorder - set order from { poi_ids: [...] }
+router.put('/:activityId/pois/reorder', async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.activityId);
+    if (!activity) return res.status(404).json({ success: false, error: 'Activity not found' });
+
+    const { poi_ids } = req.body;
+    if (!Array.isArray(poi_ids) || poi_ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'poi_ids debe ser una lista' });
+    }
+
+    const current = await ActivityPoi.list(activity.id);
+    const currentIds = new Set(current.map((p) => p.id));
+    if (poi_ids.length !== currentIds.size || poi_ids.some((id) => !currentIds.has(id))) {
+      return res.status(400).json({ success: false, error: 'La lista no coincide con los lugares asociados' });
+    }
+
+    await ActivityPoi.reorder(activity.id, poi_ids);
+    res.json({ success: true, data: await ActivityPoi.list(activity.id) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE /api/activities/:activityId/pois/:poiId - dissociate (keeps the POI)
+router.delete('/:activityId/pois/:poiId', async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.activityId);
+    if (!activity) return res.status(404).json({ success: false, error: 'Activity not found' });
+
+    await ActivityPoi.dissociate(activity.id, req.params.poiId);
+    res.json({ success: true, data: await ActivityPoi.list(activity.id) });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

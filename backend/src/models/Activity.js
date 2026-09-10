@@ -59,6 +59,15 @@ export class Activity {
     return findById(TABLE, id);
   }
 
+  /** The trip an activity belongs to (via its day), or null. */
+  static async tripIdOf(id) {
+    const row = await dbGet(
+      `SELECT d.trip_id FROM days d JOIN ${TABLE} a ON a.day_id = d.id WHERE a.id = ?`,
+      [id]
+    );
+    return row?.trip_id || null;
+  }
+
   static findByDayId(dayId) {
     return dbAll(`SELECT * FROM ${TABLE} WHERE day_id = ? AND deleted_at IS NULL ${ORDER}`, [dayId]);
   }
@@ -137,15 +146,6 @@ export class Activity {
     });
   }
 
-  static getAssociatedPois(activityId) {
-    const sql = `
-      SELECT ps.* FROM pois_saved ps
-      JOIN activity_pois ap ON ps.id = ap.poi_id
-      WHERE ap.activity_id = ?
-      ORDER BY ap.sequence_order ASC
-    `;
-    return dbAll(sql, [activityId]);
-  }
 }
 
 export default Activity;

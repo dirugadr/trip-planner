@@ -3,6 +3,7 @@ import Trip from '../models/Trip.js';
 import Day from '../models/Day.js';
 import Budget from '../models/Budget.js';
 import Accommodation from '../models/Accommodation.js';
+import ActivityPoi from '../models/ActivityPoi.js';
 
 const router = express.Router();
 
@@ -106,7 +107,7 @@ router.get('/:id', async (req, res) => {
 
     // Get days and activities
     const tripDays = await Day.findByTripId(trip.id);
-    const days = await Promise.all(
+    let days = await Promise.all(
       tripDays.map(async (day) => ({
         ...day,
         activities: await Day.getActivities(day.id),
@@ -114,6 +115,14 @@ router.get('/:id', async (req, res) => {
         cities: citiesForDay(day.date)
       }))
     );
+
+    // Attach each activity's associated POIs (HU-2.3) in one query.
+    const activityIds = days.flatMap((d) => d.activities.map((a) => a.id));
+    const poisByActivity = await ActivityPoi.listForActivities(activityIds);
+    days = days.map((day) => ({
+      ...day,
+      activities: day.activities.map((a) => ({ ...a, pois: poisByActivity.get(a.id) || [] }))
+    }));
 
     // Get stats
     const stats = await Trip.getStats(trip.id);

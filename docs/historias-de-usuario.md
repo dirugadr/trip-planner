@@ -152,11 +152,22 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - CUANDO el viaje no tiene POIs, el sistema DEBE mostrar un estado vacío con
   un enlace para agregar el primero.
 
-### HU-2.3 — Asociar POIs a una actividad 🔜
+### HU-2.3 — Asociar POIs a una actividad ✅
 **Como** viajero, **quiero** vincular uno o más POIs a una actividad, **para** saber a dónde ir.
 
-- El sistema DEBE permitir asociar POIs a una actividad con un orden (`sequence_order`).
-- El sistema DEBE mostrar los POIs asociados en el detalle de la actividad.
+- El sistema DEBE permitir asociar uno o más POIs del viaje a una actividad
+  desde un selector (`POST /api/activities/:id/pois`), soportando varios POIs
+  con orden (`sequence_order`).
+- El sistema DEBE mostrar los POIs asociados, en orden, en la ficha de la
+  actividad (etiqueta con ícono de categoría) y permitir reordenarlos (↑/↓,
+  `PUT .../pois/reorder`).
+- El sistema DEBE permitir desasociar un POI sin borrarlo
+  (`DELETE .../pois/:poiId`).
+- CUANDO se elimina (lógico) un POI o una actividad, el sistema DEBE quitar
+  las filas de `activity_pois` correspondientes, sin tocar la otra entidad.
+- CUANDO el POI buscado no existe, el sistema DEBE permitir crearlo sin salir
+  del flujo (`PoiForm` embebido → `POST .../pois/new`, que crea el POI y la
+  asociación en una sola transacción).
 
 ### HU-2.4 — Gestionar categorías de POI 💭
 **Como** viajero, **quiero** categorías con ícono y color, **para** clasificar los lugares.

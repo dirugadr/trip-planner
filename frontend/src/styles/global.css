@@ -445,3 +445,56 @@ h3 {
   background: none;
   border: none;
 }
+
+/* POIs associated to an activity (HU-2.3) */
+.activity-pois {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+.assoc-poi-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.assoc-poi-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+.assoc-poi-list li:first-child {
+  border-top: none;
+}
+.assoc-poi-main {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+.assoc-poi-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.assoc-poi-add select {
+  flex: 1 1 12rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  background: var(--surface);
+  color: var(--text);
+}
+.assoc-poi-create {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem;
+  margin-top: 0.5rem;
+}
+.assoc-poi-create h3 {
+  margin-top: 0;
+}

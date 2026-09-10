@@ -2,6 +2,7 @@ import express from 'express';
 import Trip from '../models/Trip.js';
 import Poi from '../models/Poi.js';
 import PoiCategory from '../models/PoiCategory.js';
+import ActivityPoi from '../models/ActivityPoi.js';
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const router = express.Router();
  * sends resolved coordinates + address; the backend never calls Nominatim, it
  * only checks and persists what it gets.
  */
-async function validatePayload(body, { partial = false } = {}) {
+export async function validatePoiPayload(body, { partial = false } = {}) {
   const errors = [];
   const out = {};
 
@@ -79,7 +80,7 @@ router.post('/trips/:tripId/pois', async (req, res) => {
     const trip = await Trip.findById(req.params.tripId);
     if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
 
-    const { errors, out } = await validatePayload(req.body);
+    const { errors, out } = await validatePoiPayload(req.body);
     if (!('latitude' in out)) errors.push('Falta la ubicación');
     if (errors.length) return res.status(400).json({ success: false, error: errors.join('. ') });
 
@@ -96,7 +97,7 @@ router.put('/pois/:id', async (req, res) => {
     const poi = await Poi.findById(req.params.id);
     if (!poi) return res.status(404).json({ success: false, error: 'POI not found' });
 
-    const { errors, out } = await validatePayload(req.body, { partial: true });
+    const { errors, out } = await validatePoiPayload(req.body, { partial: true });
     if (errors.length) return res.status(400).json({ success: false, error: errors.join('. ') });
 
     const updated = await Poi.update(req.params.id, out);
@@ -106,11 +107,12 @@ router.put('/pois/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/pois/:id — soft delete (keeps activity_pois associations, HU-2.3)
+// DELETE /api/pois/:id — soft delete the POI, drop its activity associations (HU-2.3)
 router.delete('/pois/:id', async (req, res) => {
   try {
     const poi = await Poi.findById(req.params.id);
     if (!poi) return res.status(404).json({ success: false, error: 'POI not found' });
+    await ActivityPoi.deleteByPoiId(req.params.id);
     await Poi.delete(req.params.id, true);
     res.json({ success: true, message: 'Lugar eliminado' });
   } catch (error) {

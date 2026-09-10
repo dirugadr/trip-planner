@@ -5,6 +5,7 @@ import { listPois } from '../services/pois.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import TripMap from '../components/TripMap.jsx';
+import TripTabs from '../components/TripTabs.jsx';
 
 export default function MapPage() {
   const { id } = useParams();
@@ -21,20 +22,11 @@ export default function MapPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: '1rem' }}>
-        <Link to={`/trips/${id}`} className="btn-link">
-          ← Volver al viaje
-        </Link>
-      </div>
+      <TripTabs tripId={id} />
 
-      <div className="row-between" style={{ marginBottom: '1rem' }}>
-        <div>
-          <h1 style={{ marginBottom: '0.2rem' }}>Mapa</h1>
-          <div className="muted">{trip.name}</div>
-        </div>
-        <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/lugares`}>
-          Lista de lugares
-        </Link>
+      <div style={{ marginBottom: '1rem' }}>
+        <h1 style={{ marginBottom: '0.2rem' }}>Mapa</h1>
+        <div className="muted">{trip.name}</div>
       </div>
 
       {pois.length === 0 ? (

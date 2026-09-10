@@ -446,6 +446,37 @@ h3 {
   border: none;
 }
 
+/* Trip section tabs */
+.trip-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+.trip-tab {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.trip-tab:hover {
+  color: var(--text);
+  text-decoration: none;
+  background: var(--bg);
+}
+.trip-tab-active,
+.trip-tab-active:hover {
+  color: var(--primary);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
 /* POIs associated to an activity (HU-2.3) */
 .activity-pois {
   display: flex;

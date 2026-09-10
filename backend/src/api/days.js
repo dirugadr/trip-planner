@@ -1,4 +1,5 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import Day from '../models/Day.js';
 
 const router = express.Router();
@@ -25,7 +26,7 @@ router.put('/:id', async (req, res) => {
 
     res.json({ success: true, data: updated });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

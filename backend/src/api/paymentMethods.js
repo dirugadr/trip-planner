@@ -1,4 +1,5 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import PaymentMethod from '../models/PaymentMethod.js';
 
 const router = express.Router();
@@ -9,7 +10,7 @@ router.get('/', async (req, res) => {
     const methods = await PaymentMethod.findAll();
     res.json({ success: true, data: methods });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

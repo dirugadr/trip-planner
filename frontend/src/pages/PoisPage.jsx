@@ -16,6 +16,7 @@ import Modal from '../components/Modal.jsx';
 import PoiForm from '../components/PoiForm.jsx';
 import TripTabs from '../components/TripTabs.jsx';
 import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
+import { safeUrl } from '../utils/safeUrl.js';
 
 export default function PoisPage() {
   const { id } = useParams();
@@ -101,9 +102,9 @@ export default function PoisPage() {
                   {Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}
                 </div>
                 {p.notes && <div className="muted" style={{ whiteSpace: 'pre-wrap' }}>{p.notes}</div>}
-                {p.url && (
+                {safeUrl(p.url) && (
                   <div className="muted">
-                    <a href={p.url} target="_blank" rel="noreferrer">
+                    <a href={safeUrl(p.url)} target="_blank" rel="noreferrer">
                       enlace
                     </a>
                   </div>

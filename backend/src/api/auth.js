@@ -52,12 +52,18 @@ router.get('/me', async (req, res) => {
   if (!token) {
     return res.status(401).json({ success: false, error: 'No autenticado' });
   }
+  let user;
   try {
-    const user = await verifySessionToken(token);
-    res.json({ success: true, data: { user } });
+    user = await verifySessionToken(token);
   } catch {
-    res.status(401).json({ success: false, error: 'Sesión inválida o expirada' });
+    return res.status(401).json({ success: false, error: 'Sesión inválida o expirada' });
   }
+  // Re-check the allowlist here too, so a revoked user doesn't keep a
+  // "logged in" UI until their token expires (matches requireAuth / HU-7.11).
+  if (!isEmailAllowed(user.email)) {
+    return res.status(401).json({ success: false, error: 'Acceso revocado' });
+  }
+  res.json({ success: true, data: { user } });
 });
 
 export default router;

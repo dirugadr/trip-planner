@@ -98,16 +98,17 @@ como frontend y API comparten origen no hay nada que configurar de CORS.
 ## Documentación
 
 - [`docs/historias-de-usuario.md`](docs/historias-de-usuario.md) — Backlog por épica, con criterios de aceptación (EARS)
+- [`docs/seguridad.md`](docs/seguridad.md) — Modelo de seguridad, protecciones y riesgos aceptados
 - `backend/src/db/001_initial_schema.sql` — Modelo de datos
 
 ## Épicas
 
 - [x] Épica 1: Itinerarios
-- [ ] Épica 2: Mapa y POIs
+- [x] Épica 2: Mapa y POIs
 - [x] Épica 3: Presupuesto
 - [ ] Épica 4: Offline
 - [ ] Épica 5: Versión Mobile
-- [ ] Épica 6: Documentos
+- [x] Épica 6: Documentos
 - [x] Épica 7: Seguridad y acceso (login con Google + allowlist)
 - [x] Épica 8: Alojamientos
 

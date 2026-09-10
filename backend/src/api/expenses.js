@@ -1,4 +1,5 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import Trip from '../models/Trip.js';
 import Expense from '../models/Expense.js';
 import BudgetCategory from '../models/BudgetCategory.js';
@@ -42,7 +43,7 @@ router.get('/', async (req, res) => {
     const expenses = await Expense.findByTripId(trip_id);
     res.json({ success: true, data: expenses });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -77,7 +78,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ success: true, data: expense });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -104,7 +105,7 @@ router.put('/:id', async (req, res) => {
     const updated = await Expense.update(req.params.id, out);
     res.json({ success: true, data: updated });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -118,7 +119,7 @@ router.delete('/:id', async (req, res) => {
     await Expense.delete(req.params.id, true);
     res.json({ success: true, message: 'Gasto eliminado' });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

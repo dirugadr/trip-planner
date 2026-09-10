@@ -1,4 +1,5 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import Trip from '../models/Trip.js';
 import BudgetCategory from '../models/BudgetCategory.js';
 
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
     const categories = await BudgetCategory.findByTripId(trip_id);
     res.json({ success: true, data: categories });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -55,7 +56,7 @@ router.post('/', async (req, res) => {
     if (/UNIQUE/i.test(error.message)) {
       return res.status(400).json({ success: false, error: 'Ya existe una categoría con ese nombre en el viaje' });
     }
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -88,7 +89,7 @@ router.put('/:id', async (req, res) => {
     if (/UNIQUE/i.test(error.message)) {
       return res.status(400).json({ success: false, error: 'Ya existe una categoría con ese nombre en el viaje' });
     }
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -111,7 +112,7 @@ router.delete('/:id', async (req, res) => {
     await BudgetCategory.delete(req.params.id);
     res.json({ success: true, message: 'Categoría eliminada' });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

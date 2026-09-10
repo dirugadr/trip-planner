@@ -111,8 +111,22 @@ export async function dbBatch(stmts) {
 // Common CRUD helpers
 // ============================================
 
+// Column / table names are interpolated into SQL (they can't be bound as
+// parameters), so anything that reaches an identifier position MUST match this.
+// Guards against callers that pass through unvalidated request-body keys.
+const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function assertIdentifiers(names) {
+  for (const name of names) {
+    if (!IDENTIFIER_RE.test(name)) {
+      throw new Error(`Nombre de columna inválido: ${JSON.stringify(name)}`);
+    }
+  }
+}
+
 export async function insertOne(table, data) {
   const columns = Object.keys(data);
+  assertIdentifiers(columns);
   const placeholders = columns.map(() => '?').join(', ');
   const values = Object.values(data);
 
@@ -129,6 +143,7 @@ export async function insertOne(table, data) {
 
 export async function updateOne(table, id, data) {
   const columns = Object.keys(data);
+  assertIdentifiers(columns);
   const updates = columns.map((col) => `${col} = ?`).join(', ');
   const values = [...Object.values(data), id];
 
@@ -161,6 +176,7 @@ export async function findAll(table, filter = {}) {
   let sql = `SELECT * FROM ${table} WHERE deleted_at IS NULL`;
   const values = [];
 
+  assertIdentifiers(Object.keys(filter));
   Object.entries(filter).forEach(([key, value]) => {
     sql += ` AND ${key} = ?`;
     values.push(value);

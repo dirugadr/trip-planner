@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
+import { safeUrl } from '../utils/safeUrl.js';
 
 /** A teardrop pin coloured by category — a divIcon, so no external images. */
 function pinIcon(color) {
@@ -87,10 +88,10 @@ export default function TripMap({ pois }) {
                   {p.notes}
                 </>
               )}
-              {p.url && (
+              {safeUrl(p.url) && (
                 <>
                   <br />
-                  <a href={p.url} target="_blank" rel="noreferrer">
+                  <a href={safeUrl(p.url)} target="_blank" rel="noreferrer">
                     enlace
                   </a>
                 </>

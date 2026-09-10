@@ -1,8 +1,10 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import Trip from '../models/Trip.js';
 import Poi from '../models/Poi.js';
 import PoiCategory from '../models/PoiCategory.js';
 import ActivityPoi from '../models/ActivityPoi.js';
+import { sanitizeHttpUrl } from '../lib/url.js';
 
 const router = express.Router();
 
@@ -47,8 +49,13 @@ export async function validatePoiPayload(body, { partial = false } = {}) {
     }
   }
 
-  for (const key of ['address', 'url', 'notes', 'description']) {
+  for (const key of ['address', 'notes', 'description']) {
     if (key in body) out[key] = (body[key] ?? '').toString().trim() || null;
+  }
+  if ('url' in body) {
+    const raw = (body.url ?? '').toString().trim();
+    if (raw && !sanitizeHttpUrl(raw)) errors.push('El enlace debe empezar con http:// o https://');
+    else out.url = sanitizeHttpUrl(raw);
   }
 
   return { errors, out };
@@ -59,7 +66,7 @@ router.get('/poi-categories', async (req, res) => {
   try {
     res.json({ success: true, data: await PoiCategory.findAll() });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -70,7 +77,7 @@ router.get('/trips/:tripId/pois', async (req, res) => {
     if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
     res.json({ success: true, data: await Poi.findByTripId(trip.id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -87,7 +94,7 @@ router.post('/trips/:tripId/pois', async (req, res) => {
     const poi = await Poi.create({ trip_id: trip.id, ...out });
     res.status(201).json({ success: true, data: poi });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -103,7 +110,7 @@ router.put('/pois/:id', async (req, res) => {
     const updated = await Poi.update(req.params.id, out);
     res.json({ success: true, data: updated });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -116,7 +123,7 @@ router.delete('/pois/:id', async (req, res) => {
     await Poi.delete(req.params.id, true);
     res.json({ success: true, message: 'Lugar eliminado' });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

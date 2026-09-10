@@ -1,4 +1,5 @@
 import express from 'express';
+import { serverError } from '../lib/http.js';
 import multer from 'multer';
 import { Readable } from 'stream';
 import { blobConfigError } from '../config/index.js';
@@ -75,7 +76,7 @@ router.post('/trips/:tripId/documents', guardBlob, uploadSingle, async (req, res
 
     res.status(201).json({ success: true, data: doc });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -86,7 +87,7 @@ router.get('/trips/:tripId/documents', async (req, res) => {
     if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
     res.json({ success: true, data: await Document.findByTripId(trip.id) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -107,7 +108,7 @@ router.get('/documents/:id/download', guardBlob, async (req, res) => {
     );
     Readable.fromWeb(result.stream).pipe(res);
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 
@@ -122,7 +123,7 @@ router.delete('/documents/:id', guardBlob, async (req, res) => {
 
     res.json({ success: true, message: 'Documento eliminado' });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    serverError(res, error);
   }
 });
 

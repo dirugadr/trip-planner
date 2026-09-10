@@ -12,6 +12,7 @@ import {
 } from '../services/activities.js';
 import { formatDayHeading, formatDateRange, formatDuration, formatMoney } from '../utils/format.js';
 import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
+import { safeUrl } from '../utils/safeUrl.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
@@ -235,10 +236,10 @@ export default function TripDetailPage() {
                     )}
                     <div className="muted">
                       {activity.duration_minutes ? formatDuration(activity.duration_minutes) : ''}
-                      {activity.url && (
+                      {safeUrl(activity.url) && (
                         <>
                           {activity.duration_minutes ? ' · ' : ''}
-                          <a href={activity.url} target="_blank" rel="noreferrer">
+                          <a href={safeUrl(activity.url)} target="_blank" rel="noreferrer">
                             enlace
                           </a>
                         </>

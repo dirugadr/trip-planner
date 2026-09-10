@@ -4,6 +4,15 @@ import { insertOne, updateOne, deleteOne, findById, dbGet, dbRun, dbAll } from '
 const TABLE = 'activities';
 const ORDER = 'ORDER BY sort_order ASC, start_time ASC';
 
+// Columns a caller may set via update(). `day_id` is included because the
+// accommodation sync moves check-in/out activities between days. Server-managed
+// columns (id, timestamps, version, deleted_at, accommodation_id) are excluded.
+const EDITABLE = [
+  'day_id', 'title', 'description', 'start_time', 'duration_minutes',
+  'location_name', 'latitude', 'longitude', 'url', 'completed', 'tentative',
+  'sort_order', 'accommodation_role',
+];
+
 export class Activity {
   static async create(data) {
     const maxRow = await dbGet(
@@ -73,11 +82,10 @@ export class Activity {
   }
 
   static async update(id, data) {
-    const updates = {
-      ...data,
-      updated_at: new Date().toISOString(),
-      version: (data.version || 0) + 1
-    };
+    const updates = { updated_at: new Date().toISOString(), version: (data.version || 0) + 1 };
+    for (const key of EDITABLE) {
+      if (key in data) updates[key] = data[key];
+    }
 
     const success = await updateOne(TABLE, id, updates);
     if (success) {

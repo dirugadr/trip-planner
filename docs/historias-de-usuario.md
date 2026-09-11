@@ -594,6 +594,13 @@ Detalle completo, protecciones y riesgos aceptados en
   (`UNIQUE(trip_id, name)`) — "Comida" y "comida" resuelven al mismo tag, no
   se duplican.
 - Los links pertenecen a un viaje (`trip_id` obligatorio).
+- 🆕 *(2026-09-11)* El sistema DEBE ofrecer siempre, además de los tags ya
+  usados en el viaje, las 7 categorías de POI (atracción, estación,
+  alojamiento, gastronomía, naturaleza, cultura, otro) como sugerencias base
+  — aparecen aunque el viaje todavía no tenga ningún link, y se deduplican
+  por nombre contra los tags reales. Elegir una de estas sugerencias la
+  crea en `tags` como cualquier tag nuevo la primera vez que se usa; no
+  quedan filas "fantasma" en `tags` solo por aparecer como sugerencia.
 
 ### HU-9.2 — Ver, editar y eliminar links ✅
 **Como** viajero, **quiero** ver, editar y eliminar mis links guardados, **para** mantener la lista organizada.

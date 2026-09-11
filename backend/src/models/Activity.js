@@ -14,11 +14,48 @@ const EDITABLE = [
 ];
 
 export class Activity {
+  /** Build a full activities row from data + an explicit sort_order (no DB write). */
+  static rowFor(data, sortOrder) {
+    return {
+      id: randomUUID(),
+      day_id: data.day_id,
+      title: data.title,
+      description: data.description || null,
+      start_time: data.start_time || null,
+      duration_minutes: data.duration_minutes || null,
+      location_name: data.location_name || null,
+      latitude: data.latitude || null,
+      longitude: data.longitude || null,
+      url: data.url || null,
+      completed: data.completed ? 1 : 0,
+      tentative: data.tentative ? 1 : 0,
+      sort_order: sortOrder,
+      accommodation_id: data.accommodation_id || null,
+      accommodation_role: data.accommodation_role || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      deleted_at: null,
+      version: 1,
+    };
+  }
+
+  /** INSERT statement for a row from rowFor() — for use inside a dbBatch. */
+  static insertStmt(row) {
+    const cols = Object.keys(row);
+    return {
+      sql: `INSERT INTO ${TABLE} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+      args: Object.values(row),
+    };
+  }
+
+  /** Next free sort_order slot in a day's activity list. */
+  static async nextSortOrder(dayId) {
+    const maxRow = await dbGet(`SELECT MAX(sort_order) AS m FROM ${TABLE} WHERE day_id = ?`, [dayId]);
+    return (maxRow?.m ?? 0) + 1;
+  }
+
   static async create(data) {
-    const maxRow = await dbGet(
-      `SELECT MAX(sort_order) AS m FROM ${TABLE} WHERE day_id = ?`,
-      [data.day_id]
-    );
+    const nextSortOrder = await Activity.nextSortOrder(data.day_id);
 
     const activity = {
       id: randomUUID(),
@@ -33,7 +70,7 @@ export class Activity {
       url: data.url || null,
       completed: data.completed ? 1 : 0,
       tentative: data.tentative ? 1 : 0,
-      sort_order: data.sort_order ?? (maxRow?.m ?? 0) + 1,
+      sort_order: data.sort_order ?? nextSortOrder,
       accommodation_id: data.accommodation_id || null,
       accommodation_role: data.accommodation_role || null,
       created_at: new Date().toISOString(),

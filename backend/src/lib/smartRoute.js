@@ -91,4 +91,89 @@ export function validateProposal(proposal, inputIds) {
   }
 }
 
+const POI_ORDER_TOOL = {
+  name: 'propose_poi_order',
+  description: 'Propone un orden lógico para recorrer una lista de POIs a pie',
+  input_schema: {
+    type: 'object',
+    properties: {
+      ordered_poi_ids: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'IDs de POI en el orden sugerido, exactamente los mismos recibidos, sin agregar ni quitar',
+      },
+      reasons: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            poi_id: { type: 'string' },
+            reason: { type: 'string', description: 'Justificación breve, una oración' },
+          },
+          required: ['poi_id', 'reason'],
+        },
+      },
+    },
+    required: ['ordered_poi_ids', 'reasons'],
+  },
+};
+
+/**
+ * Ask Claude for a walking order over a set of POIs still being assembled
+ * into a route template (HU-2.6) — no schedule involved yet, order only.
+ * `input`: { pois: [{poi_id, name, category}], walking_times_minutes: [{from,to,minutes,source}] }
+ */
+export async function proposePoiOrder(input) {
+  const anthropic = new Anthropic({ apiKey: config.anthropic.apiKey });
+
+  const prompt =
+    'Sos un asistente de planificación de viajes. Te paso una lista de lugares (POIs) ' +
+    'que un viajero quiere visitar a pie, junto con los tiempos de caminata reales entre ' +
+    'cada par. Proponé el mejor orden para recorrerlos caminando, minimizando idas y ' +
+    'vueltas innecesarias. No hay horarios todavía. Devolvé TODOS los poi_id que te paso, ' +
+    'ninguno de más ni de menos, usando el poi_id exacto.\n\n' +
+    JSON.stringify(input, null, 2);
+
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1500,
+      tools: [POI_ORDER_TOOL],
+      tool_choice: { type: 'tool', name: 'propose_poi_order' },
+      messages: [{ role: 'user', content: prompt }],
+    });
+  } catch (err) {
+    const e = new Error(`No se pudo generar la sugerencia (API de Claude): ${err.message}`);
+    e.status = 502;
+    throw e;
+  }
+
+  const block = response.content.find((b) => b.type === 'tool_use');
+  if (!block?.input?.ordered_poi_ids) {
+    const e = new Error('La API de Claude no devolvió una propuesta válida');
+    e.status = 502;
+    throw e;
+  }
+
+  validatePoiOrderProposal(block.input, input.pois.map((p) => p.poi_id));
+  return block.input;
+}
+
+/** Same guard as validateProposal(), but over ordered_poi_ids / poi_id. */
+export function validatePoiOrderProposal(proposal, inputIds) {
+  const inSet = new Set(inputIds);
+  const outIds = proposal?.ordered_poi_ids || [];
+  const outSet = new Set(outIds);
+  const ok =
+    outIds.length === inSet.size &&
+    outSet.size === inSet.size &&
+    [...inSet].every((id) => outSet.has(id));
+  if (!ok) {
+    const e = new Error('La sugerencia de Claude no coincide con los lugares enviados (IDs de más o de menos)');
+    e.status = 502;
+    throw e;
+  }
+}
+
 export default proposeDayRoute;

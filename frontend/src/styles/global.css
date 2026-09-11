@@ -477,6 +477,23 @@ h3 {
   border-color: var(--border);
 }
 
+/* Smart route suggestion (HU-2.5) */
+.smart-route-list {
+  list-style: decimal;
+  margin: 0.5rem 0 0;
+  padding-left: 1.4rem;
+}
+.smart-route-list li {
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+}
+.smart-route-list li:first-child {
+  border-top: none;
+}
+.smart-route-head {
+  font-size: 0.95rem;
+}
+
 /* POIs associated to an activity (HU-2.3) */
 .activity-pois {
   display: flex;

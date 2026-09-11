@@ -127,13 +127,11 @@ export class Activity {
   static async checkTimeConflict(dayId, startTime, durationMinutes, excludeId = null) {
     if (!startTime || !durationMinutes) return false;
 
-    // Parse time to minutes
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const activityStart = startHour * 60 + startMin;
-    const activityEnd = activityStart + durationMinutes;
+    const start = parseHM(startTime);
+    const end = start + durationMinutes;
+    if (start == null) return false;
 
-    // Check for overlaps, ignoring the activity being edited and tentative plans
-    const conflicts = await dbAll(
+    const others = await dbAll(
       `SELECT * FROM ${TABLE}
        WHERE day_id = ?
        AND deleted_at IS NULL
@@ -144,16 +142,51 @@ export class Activity {
       excludeId ? [dayId, excludeId] : [dayId]
     );
 
-    return conflicts.some((activity) => {
-      const [h, m] = activity.start_time.split(':').map(Number);
-      const otherStart = h * 60 + m;
-      const otherEnd = otherStart + activity.duration_minutes;
-
-      // Check overlap: activity starts before other ends AND activity ends after other starts
-      return activityStart < otherEnd && activityEnd > otherStart;
+    return others.some((a) => {
+      const oStart = parseHM(a.start_time);
+      return oStart != null && rangesOverlap(start, end, oStart, oStart + a.duration_minutes);
     });
   }
 
+}
+
+/** "HH:MM" -> minutes since midnight, or null. */
+export function parseHM(hm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((hm ?? '').toString().trim());
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Half-open interval overlap: [aStart,aEnd) vs [bStart,bEnd). */
+export function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && aEnd > bStart;
+}
+
+/**
+ * Conflicts within a proposed schedule (HU-1.8 semantics: tentative plans and
+ * items without a time+duration don't count). Shared by checkTimeConflict and
+ * the smart-route apply step so the two never drift.
+ *
+ * @param {{id:string,title?:string,start_time:string,duration_minutes:number,tentative?:boolean|number}[]} items
+ * @returns {{a:{id,title}, b:{id,title}}[]}
+ */
+export function findScheduleConflicts(items) {
+  const timed = items
+    .filter((i) => !i.tentative && i.start_time && i.duration_minutes)
+    .map((i) => ({ id: i.id, title: i.title, start: parseHM(i.start_time), dur: i.duration_minutes }))
+    .filter((i) => i.start != null);
+
+  const out = [];
+  for (let i = 0; i < timed.length; i++) {
+    for (let j = i + 1; j < timed.length; j++) {
+      const x = timed[i];
+      const y = timed[j];
+      if (rangesOverlap(x.start, x.start + x.dur, y.start, y.start + y.dur)) {
+        out.push({ a: { id: x.id, title: x.title }, b: { id: y.id, title: y.title } });
+      }
+    }
+  }
+  return out;
 }
 
 export default Activity;

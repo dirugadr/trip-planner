@@ -111,8 +111,10 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 
 ## Épica 2 — Mapa y POIs
 
-> Guardar puntos de interés (lugares), verlos en un mapa y vincularlos al itinerario.
-> Tablas ya existentes: `pois_saved`, `poi_categories`, `activity_pois`, `transport_modes`, `routes`.
+> Guardar puntos de interés (lugares), verlos en un mapa, vincularlos al
+> itinerario y pedir un recorrido sugerido por IA. Tablas: `pois_saved`,
+> `poi_categories`, `activity_pois`, `poi_walk_times` (caché de HU-2.5).
+> `transport_modes` / `routes` quedan sin uso (eran para trazado geográfico).
 
 ### HU-2.1 — Guardar un POI ✅
 **Como** viajero, **quiero** guardar un lugar con nombre, categoría y ubicación, **para** tenerlo a mano.
@@ -175,11 +177,33 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - Existe un set inicial (atracción, estación, alojamiento, gastronomía, naturaleza, cultura, otro).
 - 💭 Categorías personalizadas.
 
-### HU-2.5 — Rutas entre POIs 💭
-**Como** viajero, **quiero** definir cómo me muevo entre dos POIs de un día y cuánto tarda, **para** estimar tiempos.
+### HU-2.5 — Recorrido inteligente entre POIs de un día ✅
+**Como** viajero, **quiero** que un asistente me sugiera el mejor orden y horarios para visitar los POIs de un día, **para** optimizar el itinerario sin planificarlo a mano.
 
-- El sistema DEBE permitir crear una ruta entre dos POIs con modo de transporte y duración estimada.
-- 💭 Cálculo automático de duración con un servicio externo.
+> Reemplaza el enfoque original de "rutas geográficas dibujadas en el mapa"
+> (tablas `routes` / `transport_modes`, que quedan libres) por una sugerencia
+> generada con la **API de Claude**.
+
+- El sistema DEBE permitir pedir una sugerencia de recorrido para un día
+  (`POST /api/days/:dayId/smart-route`), tomando los POIs asociados a las
+  actividades de ese día (primer POI de cada actividad) + sus horarios actuales.
+- CUANDO hay menos de 2 actividades con POI, el sistema DEBE informarlo **sin**
+  llamar a la API de Claude.
+- El sistema DEBE calcular tiempos de caminata entre paradas con OSRM (matriz de
+  *distancias* de la red vial → minutos a pie; el server público de OSRM solo
+  sirve el perfil auto, por eso se usa la distancia y no su duración) y pasarlos
+  como contexto. Si OSRM falla, usa distancia en línea recta (haversine) marcada
+  como estimada. Los tiempos calculados se **cachean** en `poi_walk_times`.
+- La llamada a Claude usa **tool use forzado** (`propose_day_route`); el backend
+  DEBE rechazar (502) cualquier respuesta cuyo conjunto de `activity_id` no
+  coincida exacto con el enviado — nunca aplicar una sugerencia parcial.
+- La sugerencia se muestra como **propuesta editable** (orden + horarios por
+  parada + justificación + resumen), sin tocar la base.
+- Aplicar (`POST .../smart-route/apply`) reordena y reprograma las actividades
+  del día en una transacción, **reusando** la validación de conflictos de HU-1.8
+  (`findScheduleConflicts`); si generaría solapamiento, avisa y no aplica nada.
+- Se puede descartar sin escribir nada.
+- Requiere `ANTHROPIC_API_KEY_TP`; sin ella el endpoint responde 503.
 
 ---
 

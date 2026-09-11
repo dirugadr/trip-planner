@@ -217,11 +217,44 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - Se puede descartar sin escribir nada.
 - Requiere `ANTHROPIC_API_KEY_TP`; sin ella el endpoint responde 503.
 
-### HU-2.6 — Armar y aplicar recorridos visuales 💭
-**Como** viajero, **quiero** ver y ajustar a mano el recorrido de un día sobre el mapa, **para** planificarlo visualmente.
+### HU-2.6 — Armar y aplicar recorridos visuales ✅
+**Como** viajero, **quiero** armar visualmente una secuencia de POIs en el mapa y guardarla como un recorrido con nombre, **para** poder aplicarla luego a un día del viaje indicando solo la hora de inicio.
 
-- 💭 Sin planificar en detalle. Consumiría la duración estimada por POI
-  (`estimated_duration_minutes`, ver HU-2.1) para armar la línea de tiempo.
+> 🆕 2026-09-11: implementado. Tablas nuevas `route_templates` /
+> `route_template_stops` (no se reutilizó `routes`, que es la caché de OSRM de
+> HU-2.5). Vive dentro de la pestaña Mapa (`MapPage.jsx`), no como ruta propia
+> — la app usa páginas ruteadas por sección, no un árbol de tabs interno.
+> Reusa `routing.js`/caché OSRM de HU-2.5 y la validación de conflictos de
+> HU-1.8 (`findScheduleConflicts`), sin duplicarlas.
+
+- Un botón "🧭 Armar recorrido" en el Mapa activa un modo de selección: tocar
+  un POI en su popup (`➕ Agregar al recorrido`) lo agrega, en orden, a un
+  panel lateral (`RouteBuilderPanel.jsx`).
+- El panel permite reordenar arrastrando (drag & drop nativo HTML5, sin
+  librería nueva) y muestra la **duración total estimada en vivo**
+  (`POST /api/trips/:tripId/route-templates/preview`), recalculada en cada
+  cambio: suma de `estimated_duration_minutes` por POI (o un default por
+  categoría si no está cargado: cultura=90, gastronomía=60,
+  naturaleza=60, atracción=60, estación=15, alojamiento=0, otro=30) +
+  tiempos de caminata entre paradas consecutivas (OSRM, vía `routing.js`).
+- "Guardar recorrido" (`POST /api/trips/:tripId/route-templates`) lo asocia al
+  viaje con nombre + secuencia de POIs. Editar/eliminar (`PUT`/`DELETE
+  /api/route-templates/:id`) reemplazan la secuencia de stops por completo,
+  igual que el patrón de tags de Épica 9. Eliminar es soft-delete.
+- "🧭 Ordenar automáticamente" (`POST .../route-templates/smart-order`,
+  deshabilitado con menos de 3 POIs) llama a Claude con **tool use forzado**
+  (`propose_poi_order`, mismo patrón de validación estricta que HU-2.5: si el
+  conjunto de `poi_id` devuelto no coincide exacto con el enviado, se
+  rechaza) para sugerir un orden a pie, sin horarios ni persistencia — el
+  viajero puede seguir ajustando a mano después.
+- "Aplicar a un día" (`POST /api/route-templates/:id/apply`, `{ day_id,
+  start_time }`) genera una actividad por parada, secuenciada desde
+  `start_time` (inicio + duración de visita + caminata a la siguiente),
+  asociada a su POI (`activity_pois`, HU-2.3). Corre la validación de
+  conflictos de HU-1.8 contra las actividades ya cargadas ese día: si hay
+  solapamiento, no crea nada (todo o nada) y devuelve el detalle.
+- Requiere `ANTHROPIC_API_KEY_TP` solo para el ordenamiento automático; armar,
+  guardar y aplicar un recorrido no dependen de Claude.
 
 ### HU-2.7 — Filtrar POIs por categoría y ciudad ✅
 **Como** viajero, **quiero** filtrar los POIs por categoría y/o ciudad, **para** encontrar lugares específicos más rápido en viajes con muchos POIs guardados.

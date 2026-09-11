@@ -49,7 +49,7 @@ function FitBounds({ points }) {
   return null;
 }
 
-export default function TripMap({ pois }) {
+export default function TripMap({ pois, selectable = false, selectedIds, onToggleSelect }) {
   const points = useMemo(
     () => pois.map((p) => [Number(p.latitude), Number(p.longitude)]),
     [pois]
@@ -102,6 +102,17 @@ export default function TripMap({ pois }) {
                     enlace
                   </a>
                 </>
+              )}
+              {selectable && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm${selectedIds?.has(p.id) ? ' btn-secondary' : ''}`}
+                    onClick={() => onToggleSelect?.(p.id)}
+                  >
+                    {selectedIds?.has(p.id) ? '✓ En el recorrido' : '➕ Agregar al recorrido'}
+                  </button>
+                </div>
               )}
             </Popup>
           </Marker>

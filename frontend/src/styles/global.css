@@ -662,3 +662,49 @@ h3 {
 .link-tag-suggestions button:hover {
   background: var(--bg);
 }
+
+/* Route templates / recorridos visuales (HU-2.6) */
+.route-builder-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .route-builder-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.route-builder {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1rem;
+}
+.route-builder-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+.route-builder-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+  cursor: grab;
+}
+.route-builder-list li:first-child {
+  border-top: none;
+}
+.route-builder-handle {
+  color: var(--text-muted);
+}
+.route-builder-reason {
+  flex-basis: 100%;
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+.route-builder-list li button.btn-link {
+  margin-left: auto;
+}

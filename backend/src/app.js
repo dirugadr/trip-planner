@@ -15,6 +15,7 @@ import accommodationsRouter from './api/accommodations.js';
 import poisRouter from './api/pois.js';
 import documentsRouter from './api/documents.js';
 import linksRouter from './api/links.js';
+import routeTemplatesRouter from './api/routeTemplates.js';
 
 const app = express();
 
@@ -89,6 +90,8 @@ app.use('/api', poisRouter);
 app.use('/api', documentsRouter);
 // Links de interés (Épica 9): /api/trips/:tripId/links, /api/links/:id, /api/trips/:tripId/tags
 app.use('/api', linksRouter);
+// Recorridos visuales (HU-2.6): /api/trips/:tripId/route-templates, /api/route-templates/:id
+app.use('/api', routeTemplatesRouter);
 
 // ============================================
 // 404 Handler

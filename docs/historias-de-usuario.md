@@ -559,3 +559,51 @@ Detalle completo, protecciones y riesgos aceptados en
   campo Ciudad estar vacío, el sistema DEBE completarlo automáticamente con la
   ciudad extraída (`city → town → village → municipality`), sin sobrescribir un
   valor ya cargado por el viajero; sigue siendo editable antes de guardar.
+
+## Épica 9 — Links de interés
+
+> Épica nueva y aislada: no depende de ninguna otra épica ni la bloquea. Tres
+> tablas nuevas (`interest_links`, `tags`, `interest_link_tags`), único punto
+> de contacto con el resto del esquema es `trip_id`. No se asocia a días,
+> actividades ni POIs — es una lista simple de referencias (foros, redes,
+> webs), sin geolocalización ni planificación temporal.
+
+### HU-9.1 — Guardar un link de interés ✅
+**Como** viajero, **quiero** guardar un link con un título y tags, **para** tener a mano publicaciones útiles que encontré en foros, redes o webs.
+
+- El sistema DEBE pedir link (URL) y título/nota corta como obligatorios; el
+  link se valida con el mismo saneo http(s) que POIs/alojamientos/actividades
+  (`sanitizeHttpUrl` — rechaza `javascript:`/`data:`).
+- El sistema DEBE permitir agregar uno o más tags a cada link (opcional).
+- El sistema DEBE sugerir tags ya usados en el mismo viaje mediante
+  autocompletar, sin impedir cargar un tag nuevo.
+- Los tags se normalizan (trim + minúsculas) y son únicos por viaje
+  (`UNIQUE(trip_id, name)`) — "Comida" y "comida" resuelven al mismo tag, no
+  se duplican.
+- Los links pertenecen a un viaje (`trip_id` obligatorio).
+
+### HU-9.2 — Ver, editar y eliminar links ✅
+**Como** viajero, **quiero** ver, editar y eliminar mis links guardados, **para** mantener la lista organizada.
+
+- El sistema DEBE listar los links del viaje, mostrando título y tags.
+- El sistema DEBE permitir editar título, link y tags (reemplaza el conjunto
+  de tags completo, misma resolución find-or-create que al crear).
+- El sistema DEBE pedir confirmación antes de eliminar.
+- El sistema DEBE hacer borrado lógico (`deleted_at`, mismo patrón del resto
+  del proyecto). Los tags de un link eliminado **persisten** para reuso
+  futuro, aunque ningún link los use en ese momento.
+
+### HU-9.3 — Buscar por tag ✅
+**Como** viajero, **quiero** buscar links por tag, **para** encontrar rápido lo que guardé sobre un tema puntual.
+
+- El sistema DEBE permitir filtrar la lista de links por uno o más tags
+  (chips multi-select, mismo estilo visual que los filtros de POIs de
+  HU-2.7).
+- CUANDO se seleccionan varios tags, el sistema DEBE mostrar los links que
+  tengan **al menos uno** de los tags seleccionados (OR, no AND) — verificado
+  con test.
+- El sistema DEBE permitir limpiar el filtro para volver a ver todos los
+  links.
+- Filtrado **client-side**: los links y tags del viaje ya están cargados de
+  entrada, no hace falta otro request por cada cambio de filtro (mismo
+  criterio que HU-2.7 para ciudades).

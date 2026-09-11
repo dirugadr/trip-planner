@@ -7,6 +7,7 @@ const TABS = [
   { to: 'lugares', label: 'Lugares' },
   { to: 'mapa', label: 'Mapa' },
   { to: 'documentos', label: 'Documentos' },
+  { to: 'links', label: 'Links de interés' },
   { to: 'budget', label: 'Presupuesto' },
 ];
 

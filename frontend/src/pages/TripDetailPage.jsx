@@ -238,9 +238,6 @@ export default function TripDetailPage() {
                       <div className="muted">Generada por el alojamiento</div>
                     )}
                     {activity.description && <div className="muted">{activity.description}</div>}
-                    {activity.location_name && (
-                      <div className="muted">📍 {activity.location_name}</div>
-                    )}
                     <div className="muted">
                       {activity.duration_minutes ? formatDuration(activity.duration_minutes) : ''}
                       {safeUrl(activity.url) && (

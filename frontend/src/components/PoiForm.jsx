@@ -10,6 +10,8 @@ function initFrom(p) {
     longitude: p?.longitude ?? null,
     url: p?.url ?? '',
     notes: p?.notes ?? '',
+    estimated_duration_minutes:
+      p?.estimated_duration_minutes != null ? String(p.estimated_duration_minutes) : '',
   };
 }
 
@@ -30,6 +32,9 @@ export default function PoiForm({ initial, categories, onSubmit, onCancel }) {
     if (!form.name.trim()) return setError('Falta el nombre.');
     if (!form.category_id) return setError('Elegí una categoría.');
     if (!resolved) return setError('Buscá una dirección y elegí un resultado de la lista.');
+    if (form.estimated_duration_minutes !== '' && (!Number.isInteger(Number(form.estimated_duration_minutes)) || Number(form.estimated_duration_minutes) <= 0)) {
+      return setError('La duración estimada debe ser un número entero de minutos mayor a 0.');
+    }
 
     const payload = {
       name: form.name.trim(),
@@ -39,6 +44,8 @@ export default function PoiForm({ initial, categories, onSubmit, onCancel }) {
       longitude: form.longitude,
       url: form.url.trim() || null,
       notes: form.notes.trim() || null,
+      estimated_duration_minutes:
+        form.estimated_duration_minutes === '' ? null : Number(form.estimated_duration_minutes),
     };
 
     setSaving(true);
@@ -105,6 +112,19 @@ export default function PoiForm({ initial, categories, onSubmit, onCancel }) {
       <div className="field">
         <label htmlFor="poi-url">Enlace</label>
         <input id="poi-url" type="url" value={form.url} onChange={set('url')} placeholder="https://…" />
+      </div>
+
+      <div className="field">
+        <label htmlFor="poi-dur">Duración estimada de visita (min)</label>
+        <input
+          id="poi-dur"
+          type="number"
+          min="1"
+          step="1"
+          value={form.estimated_duration_minutes}
+          onChange={set('estimated_duration_minutes')}
+          placeholder="90"
+        />
       </div>
 
       <div className="field">

@@ -17,6 +17,7 @@ import PoiForm from '../components/PoiForm.jsx';
 import TripTabs from '../components/TripTabs.jsx';
 import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
 import { safeUrl } from '../utils/safeUrl.js';
+import { formatDuration } from '../utils/format.js';
 
 export default function PoisPage() {
   const { id } = useParams();
@@ -101,6 +102,9 @@ export default function PoisPage() {
                 <div className="muted">
                   {Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}
                 </div>
+                {p.estimated_duration_minutes != null && (
+                  <div className="muted">⏱️ ~{formatDuration(p.estimated_duration_minutes)}</div>
+                )}
                 {p.notes && <div className="muted" style={{ whiteSpace: 'pre-wrap' }}>{p.notes}</div>}
                 {safeUrl(p.url) && (
                   <div className="muted">

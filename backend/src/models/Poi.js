@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { insertOne, updateOne, deleteOne, findById, dbAll, dbRun } from '../db/database.js';
 
 const TABLE = 'pois_saved';
-const FIELDS = ['name', 'category_id', 'latitude', 'longitude', 'address', 'url', 'notes'];
+const FIELDS = ['name', 'category_id', 'latitude', 'longitude', 'address', 'url', 'notes', 'estimated_duration_minutes'];
 
 export class Poi {
   /** Build a full pois_saved row from user data (no DB write). */
@@ -19,6 +19,7 @@ export class Poi {
       address: data.address ?? null,
       url: data.url ?? null,
       notes: data.notes ?? null,
+      estimated_duration_minutes: data.estimated_duration_minutes ?? null,
       accommodation_id: data.accommodation_id ?? null,
       created_at: now,
       updated_at: now,

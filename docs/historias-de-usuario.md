@@ -135,6 +135,12 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - El sistema DEBE guardar la dirección resuelta junto con lat/lng.
 - El sistema DEBE permitir notas y enlace opcionales.
 - Los POI pertenecen a un viaje (`trip_id` obligatorio).
+- 🆕 *(2026-09-11)* El sistema DEBE permitir cargar, opcionalmente, una
+  **duración estimada de visita** en minutos (`estimated_duration_minutes`,
+  entero positivo). Los POI sin dato quedan en `null` — sin valor por
+  categoría ni otro default; eso queda para quien consuma el dato (HU-2.6).
+  Se carga igual en el alta normal y en la creación inline desde una
+  actividad (HU-2.3), porque ambas reusan el mismo `PoiForm`.
 
 ### HU-2.1b — Editar y eliminar un POI ✅
 **Como** viajero, **quiero** modificar o borrar un POI guardado, **para** mantener la lista actualizada.

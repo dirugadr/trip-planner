@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
 import { safeUrl } from '../utils/safeUrl.js';
+import { formatDuration } from '../utils/format.js';
 
 /** A teardrop pin coloured by category — a divIcon, so no external images. */
 function pinIcon(color) {
@@ -80,6 +81,12 @@ export default function TripMap({ pois }) {
                 <>
                   <br />
                   {p.address}
+                </>
+              )}
+              {p.estimated_duration_minutes != null && (
+                <>
+                  <br />
+                  <span className="muted">⏱️ ~{formatDuration(p.estimated_duration_minutes)}</span>
                 </>
               )}
               {p.notes && (

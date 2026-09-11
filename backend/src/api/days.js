@@ -5,7 +5,7 @@ import Day from '../models/Day.js';
 import { parseHM, findScheduleConflicts } from '../models/Activity.js';
 import ActivityPoi from '../models/ActivityPoi.js';
 import { dbBatch } from '../db/database.js';
-import { walkTimeMatrix } from '../lib/routing.js';
+import { walkTimeMatrix, fetchRouteGeometry } from '../lib/routing.js';
 import { proposeDayRoute } from '../lib/smartRoute.js';
 
 const router = express.Router();
@@ -202,6 +202,56 @@ router.post('/:dayId/smart-route/apply', async (req, res) => {
     );
 
     res.json({ success: true, message: 'Recorrido aplicado' });
+  } catch (error) {
+    serverError(res, error);
+  }
+});
+
+// GET /api/days/:dayId/route-view — read-only walking route for the day's map
+// view (Épica 11): stops in schedule order + real walking geometry between
+// consecutive stops. Writes nothing.
+router.get('/:dayId/route-view', async (req, res) => {
+  try {
+    const day = await Day.findById(req.params.dayId);
+    if (!day) return res.status(404).json({ success: false, error: 'Day not found' });
+
+    const allActivities = await Day.getActivities(day.id);
+    const items = await activitiesWithPrimaryPoi(day.id);
+
+    // Schedule order, not sort_order/creation order — activities without a
+    // start_time (edge case) sort last, stable otherwise.
+    const ordered = [...items].sort((a, b) => {
+      const ta = parseHM(a.activity.start_time);
+      const tb = parseHM(b.activity.start_time);
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return ta - tb;
+    });
+
+    const stops = ordered.map((x, i) => ({
+      sequence_number: i + 1,
+      activity_id: x.activity.id,
+      activity_name: x.activity.title,
+      poi_name: x.poi.name,
+      lat: Number(x.poi.latitude),
+      lng: Number(x.poi.longitude),
+    }));
+
+    const segments = [];
+    for (let i = 0; i < stops.length - 1; i++) {
+      const geometry = await fetchRouteGeometry(stops[i], stops[i + 1]);
+      segments.push({ from: stops[i].sequence_number, to: stops[i + 1].sequence_number, ...geometry });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        stops,
+        segments,
+        activities_without_poi_count: allActivities.length - items.length,
+      },
+    });
   } catch (error) {
     serverError(res, error);
   }

@@ -660,3 +660,37 @@ Detalle completo, protecciones y riesgos aceptados en
 - Filtrado **client-side**: los links y tags del viaje ya están cargados de
   entrada, no hace falta otro request por cada cambio de filtro (mismo
   criterio que HU-2.7 para ciudades).
+
+## Épica 11 — Ver recorrido del día en el mapa
+
+> Épica nueva, de **solo lectura** — no escribe nada en la base de datos.
+> Depende de HU-2.3 (asociación de POIs a actividades) y del módulo de ruteo
+> OSRM de HU-2.5, ambas en producción.
+
+### HU-11.1 — Ver recorrido del día en el mapa ✅
+**Como** viajero, **quiero** ver en un mapa el recorrido a pie del día, en el orden de mis actividades, **para** visualizar el camino antes de salir.
+
+- Un botón "🗺️ Ver recorrido en el mapa" aparece junto a cada día en el
+  itinerario, **solo si** el día tiene al menos 2 actividades con POI
+  asociado (mismo umbral y misma condición que "✨ Sugerir recorrido",
+  HU-2.5).
+- Abre una pantalla nueva, de solo lectura (`/trips/:tripId/days/:dayId/route`,
+  `DayRouteView.jsx`), con un marcador **numerado** por cada actividad con
+  POI, en el **orden de horario** (`start_time` ascendente) — no el orden de
+  creación ni el `sort_order` de la lista manual, que pueden diferir.
+- El trazado real de caminata entre paradas consecutivas se dibuja con la
+  geometría de OSRM (`GET /route/v1/foot/...?overview=full&geometries=geojson`,
+  distinto endpoint del `/table/v1/foot` que usa la caché de HU-2.5 — este sí
+  devuelve un perfil a pie real en el servidor público). Si OSRM falla para
+  algún tramo, se traza una línea recta (achurada) entre los dos puntos en su
+  lugar, sin bloquear la pantalla — mismo espíritu de fallback que HU-2.5,
+  pero sin caché: es una consulta puntual, no vale la pena persistirla.
+  `GET /api/days/:dayId/route-view` arma todo el payload (`stops`, `segments`,
+  `activities_without_poi_count`) en un solo request.
+- CUANDO el día tiene actividades sin POI asociado, un aviso indica cuántas
+  quedaron fuera del mapa.
+- El mapa se encuadra automáticamente (`fitBounds`) sobre todas las paradas y
+  el trazado. Tocar un marcador muestra el nombre de la actividad y del POI
+  asociado en un popup.
+- Sin controles de edición de ningún tipo — a diferencia de HU-2.5/HU-2.6,
+  esta pantalla no permite reordenar, editar ni aplicar cambios.

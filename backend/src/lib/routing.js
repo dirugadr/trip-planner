@@ -5,6 +5,7 @@ import PoiWalkTime from '../models/PoiWalkTime.js';
 // convert to a walking time ourselves. That still beats a straight line
 // because it follows actual streets.
 const OSRM_TABLE = 'https://router.project-osrm.org/table/v1/foot';
+const OSRM_ROUTE = 'https://router.project-osrm.org/route/v1/foot';
 const WALK_METERS_PER_MIN = 80; // ~4.8 km/h
 
 /** Great-circle distance in metres. */
@@ -93,4 +94,32 @@ export async function walkTimeMatrix(pois) {
   }
 
   return result;
+}
+
+/**
+ * The real walking-path geometry between two points (Épica 11 — read-only
+ * day route view). Falls back to a straight line if OSRM fails; this is a
+ * one-off screen query, not worth a persistent cache like walkTimeMatrix's.
+ *
+ * @param {{lat:number,lng:number}} a
+ * @param {{lat:number,lng:number}} b
+ * @returns {Promise<{coordinates:[number,number][], source:'osrm'|'straight'}>} coordinates as [lat,lng] pairs
+ */
+export async function fetchRouteGeometry(a, b) {
+  try {
+    const res = await fetch(
+      `${OSRM_ROUTE}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const coords = data.routes?.[0]?.geometry?.coordinates;
+      if (data.code === 'Ok' && Array.isArray(coords) && coords.length > 0) {
+        return { coordinates: coords.map(([lng, lat]) => [lat, lng]), source: 'osrm' };
+      }
+    }
+  } catch {
+    // fall through to the straight-line fallback below
+  }
+  return { coordinates: [[a.lat, a.lng], [b.lat, b.lng]], source: 'straight' };
 }

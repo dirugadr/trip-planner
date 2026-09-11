@@ -14,6 +14,7 @@ import { useAuth } from './context/AuthContext.jsx';
 
 // Leaflet is heavy — keep it out of the main bundle.
 const MapPage = lazy(() => import('./pages/MapPage.jsx'));
+const DayRouteView = lazy(() => import('./pages/DayRouteView.jsx'));
 
 function HeaderUser() {
   const { status, user, logout } = useAuth();
@@ -104,6 +105,16 @@ export default function App() {
             element={
               <RequireAuth>
                 <LinksPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trips/:id/days/:dayId/route"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<Spinner />}>
+                  <DayRouteView />
+                </Suspense>
               </RequireAuth>
             }
           />

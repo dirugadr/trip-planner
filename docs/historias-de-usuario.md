@@ -555,3 +555,7 @@ Detalle completo, protecciones y riesgos aceptados en
   marcado "generado por el alojamiento"; en la pantalla de Lugares su nombre y
   ubicación son de solo lectura (solo se editan notas y enlace) y no se puede
   borrar desde ahí.
+- 🆕 *(2026-09-11)* AL resolver la dirección del alojamiento por geocoding y el
+  campo Ciudad estar vacío, el sistema DEBE completarlo automáticamente con la
+  ciudad extraída (`city → town → village → municipality`), sin sobrescribir un
+  valor ya cargado por el viajero; sigue siendo editable antes de guardar.

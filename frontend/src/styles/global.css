@@ -590,3 +590,63 @@ h3 {
 .assoc-poi-create h3 {
   margin-top: 0;
 }
+
+/* Links de interés tag input (Épica 9) */
+.link-tag-input {
+  position: relative;
+}
+.link-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+.link-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.4rem 0.15rem 0.6rem;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.link-tag-chip button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.15rem;
+}
+.link-tag-suggestions {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+  position: absolute;
+  z-index: 5;
+  width: 100%;
+}
+.link-tag-suggestions li + li {
+  border-top: 1px solid var(--border);
+}
+.link-tag-suggestions button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.link-tag-suggestions button:hover {
+  background: var(--bg);
+}

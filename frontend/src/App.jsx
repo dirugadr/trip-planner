@@ -6,6 +6,7 @@ import BudgetPage from './pages/BudgetPage.jsx';
 import AccommodationsPage from './pages/AccommodationsPage.jsx';
 import PoisPage from './pages/PoisPage.jsx';
 import DocumentsPage from './pages/DocumentsPage.jsx';
+import LinksPage from './pages/LinksPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Spinner from './components/Spinner.jsx';
@@ -95,6 +96,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <DocumentsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trips/:id/links"
+            element={
+              <RequireAuth>
+                <LinksPage />
               </RequireAuth>
             }
           />

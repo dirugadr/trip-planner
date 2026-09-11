@@ -14,6 +14,7 @@ import paymentMethodsRouter from './api/paymentMethods.js';
 import accommodationsRouter from './api/accommodations.js';
 import poisRouter from './api/pois.js';
 import documentsRouter from './api/documents.js';
+import linksRouter from './api/links.js';
 
 const app = express();
 
@@ -86,6 +87,8 @@ app.use('/api/accommodations', accommodationsRouter);
 app.use('/api', poisRouter);
 // Documentos (Épica 6): /api/trips/:tripId/documents, /api/documents/:id
 app.use('/api', documentsRouter);
+// Links de interés (Épica 9): /api/trips/:tripId/links, /api/links/:id, /api/trips/:tripId/tags
+app.use('/api', linksRouter);
 
 // ============================================
 // 404 Handler

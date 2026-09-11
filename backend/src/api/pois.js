@@ -58,6 +58,20 @@ export async function validatePoiPayload(body, { partial = false } = {}) {
     else out.url = sanitizeHttpUrl(raw);
   }
 
+  if ('estimated_duration_minutes' in body) {
+    const raw = body.estimated_duration_minutes;
+    if (raw === '' || raw == null) {
+      out.estimated_duration_minutes = null;
+    } else {
+      const minutes = Number(raw);
+      if (!Number.isInteger(minutes) || minutes <= 0) {
+        errors.push('La duración estimada debe ser un número entero de minutos mayor a 0');
+      } else {
+        out.estimated_duration_minutes = minutes;
+      }
+    }
+  }
+
   return { errors, out };
 }
 

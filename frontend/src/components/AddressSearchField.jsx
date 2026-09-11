@@ -3,8 +3,8 @@ import { useAddressSearch } from '../hooks/useAddressSearch.js';
 
 /**
  * Address input with a Nominatim autocomplete dropdown. On pick it calls
- * `onResolve({ address, latitude, longitude })`; while the user types it calls
- * `onInvalidate(text)` so the parent can drop stale coordinates.
+ * `onResolve({ address, latitude, longitude, city })`; while the user types it
+ * calls `onInvalidate(text)` so the parent can drop stale coordinates.
  */
 export default function AddressSearchField({
   id,
@@ -22,7 +22,7 @@ export default function AddressSearchField({
     setQuery(r.label);
     setDirty(false);
     clear();
-    onResolve({ address: r.label, latitude: r.latitude, longitude: r.longitude });
+    onResolve({ address: r.label, latitude: r.latitude, longitude: r.longitude, city: r.city ?? null });
   };
 
   return (

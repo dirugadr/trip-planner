@@ -6,6 +6,7 @@ function initFrom(p) {
     name: p?.name ?? '',
     category_id: p?.category_id ?? '',
     address: p?.address ?? '',
+    city: p?.city ?? null,
     latitude: p?.latitude ?? null,
     longitude: p?.longitude ?? null,
     url: p?.url ?? '',
@@ -40,6 +41,7 @@ export default function PoiForm({ initial, categories, onSubmit, onCancel }) {
       name: form.name.trim(),
       category_id: form.category_id,
       address: form.address,
+      city: form.city,
       latitude: form.latitude,
       longitude: form.longitude,
       url: form.url.trim() || null,
@@ -96,16 +98,17 @@ export default function PoiForm({ initial, categories, onSubmit, onCancel }) {
         label="Dirección * (buscá y elegí un resultado)"
         initialAddress={initial?.address ?? ''}
         disabled={linked}
-        onResolve={({ address, latitude, longitude }) =>
-          setForm((f) => ({ ...f, address, latitude, longitude }))
+        onResolve={({ address, latitude, longitude, city }) =>
+          setForm((f) => ({ ...f, address, latitude, longitude, city }))
         }
         onInvalidate={(text) =>
-          setForm((f) => ({ ...f, address: text, latitude: null, longitude: null }))
+          setForm((f) => ({ ...f, address: text, latitude: null, longitude: null, city: null }))
         }
       />
       {resolved && (
         <div className="muted poi-search-hint" style={{ marginTop: '-0.4rem', marginBottom: '0.9rem' }}>
           📍 {Number(form.latitude).toFixed(5)}, {Number(form.longitude).toFixed(5)} — ubicación resuelta
+          {form.city && <> · Ciudad: {form.city}</>}
         </div>
       )}
 

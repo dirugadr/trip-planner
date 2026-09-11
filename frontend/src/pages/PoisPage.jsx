@@ -15,9 +15,12 @@ import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
 import PoiForm from '../components/PoiForm.jsx';
 import TripTabs from '../components/TripTabs.jsx';
+import PoiFilterBar from '../components/PoiFilterBar.jsx';
 import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
 import { safeUrl } from '../utils/safeUrl.js';
 import { formatDuration } from '../utils/format.js';
+import { applyPoiFilters, citiesOf } from '../utils/poiFilters.js';
+import { usePoiFilters } from '../hooks/usePoiFilters.js';
 
 export default function PoisPage() {
   const { id } = useParams();
@@ -33,6 +36,7 @@ export default function PoisPage() {
   const [modal, setModal] = useState(null); // { poi? }
   const [actionError, setActionError] = useState(null);
   const [confirmNode, confirm] = useConfirm();
+  const { filters, toggleCategory, setCity, clear, isActive } = usePoiFilters(id);
 
   const run = async (fn) => {
     setActionError(null);
@@ -48,6 +52,8 @@ export default function PoisPage() {
   if (error) return <ErrorMessage error={error} onRetry={reload} />;
 
   const { pois, categories, trip } = data;
+  const cities = citiesOf(pois);
+  const filteredPois = applyPoiFilters(pois, filters);
 
   const handleSubmit = (payload) =>
     run(async () => {
@@ -81,10 +87,26 @@ export default function PoisPage() {
         </button>
       </div>
 
+      {pois.length > 0 && (
+        <PoiFilterBar
+          categories={categories}
+          cities={cities}
+          filters={filters}
+          onToggleCategory={toggleCategory}
+          onSetCity={setCity}
+          onClear={clear}
+          isActive={isActive}
+        />
+      )}
+
       {pois.length === 0 ? (
         <div className="empty-state">Todavía no guardaste lugares.</div>
+      ) : filteredPois.length === 0 ? (
+        <div className="empty-state">
+          Ningún lugar coincide con el filtro. <button className="btn-link" onClick={clear}>Limpiar filtros</button>
+        </div>
       ) : (
-        pois.map((p) => (
+        filteredPois.map((p) => (
           <div className="card" key={p.id}>
             <div className="row-between">
               <div>

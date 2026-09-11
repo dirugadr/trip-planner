@@ -217,6 +217,34 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - Se puede descartar sin escribir nada.
 - Requiere `ANTHROPIC_API_KEY_TP`; sin ella el endpoint responde 503.
 
+### HU-2.6 — Armar y aplicar recorridos visuales 💭
+**Como** viajero, **quiero** ver y ajustar a mano el recorrido de un día sobre el mapa, **para** planificarlo visualmente.
+
+- 💭 Sin planificar en detalle. Consumiría la duración estimada por POI
+  (`estimated_duration_minutes`, ver HU-2.1) para armar la línea de tiempo.
+
+### HU-2.7 — Filtrar POIs por categoría y ciudad ✅
+**Como** viajero, **quiero** filtrar los POIs por categoría y/o ciudad, **para** encontrar lugares específicos más rápido en viajes con muchos POIs guardados.
+
+- El sistema DEBE extraer la ciudad de cada POI al geocodificar, con fallback
+  `address.city → address.town → address.village → address.municipality → null`
+  (extracción **client-side**, sobre la respuesta de Nominatim que `PoiForm`
+  ya pedía con `addressdetails=1` desde HU-2.1 — no hizo falta tocar la
+  llamada). CUANDO Nominatim no devuelve ninguno, el POI se guarda igual con
+  `city` en `null`.
+- El sistema DEBE permitir filtrar por una o más categorías a la vez
+  (chips multi-select) y por una ciudad (de una lista de ciudades presentes
+  entre los POIs del viaje, calculada dinámicamente **en el cliente** a
+  partir de los POIs ya cargados — sin endpoint nuevo).
+- CUANDO se combinan ambos filtros, el sistema DEBE mostrar solo los POIs que
+  cumplen las dos condiciones (AND).
+- El filtro se aplica igual en la solapa Lugares y en la solapa Mapa, y **se
+  mantiene al cambiar entre ellas** — persistido en `sessionStorage` por
+  viaje (`usePoiFilters`), ya que son rutas/páginas separadas, no hermanos en
+  memoria dentro de un mismo componente.
+- El sistema DEBE permitir limpiar los filtros.
+- Los alojamientos (HU-8.6) heredan `city` del alojamiento en su POI vinculado.
+
 ---
 
 ## Épica 3 — Presupuesto

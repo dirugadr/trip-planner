@@ -430,6 +430,50 @@ h3 {
   background: var(--bg);
 }
 
+/* POI filter bar (HU-2.7) */
+.poi-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.poi-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.poi-filter-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.poi-filter-chip:hover {
+  background: var(--bg);
+}
+.poi-filter-chip-active {
+  font-weight: 600;
+  background: var(--bg);
+}
+.poi-filter-city {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+.poi-filter-city select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  background: var(--surface);
+  color: var(--text);
+}
+
 /* Trip map (HU-2.2) */
 .map-wrap {
   height: 70vh;

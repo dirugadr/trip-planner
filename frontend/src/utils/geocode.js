@@ -30,5 +30,12 @@ export async function searchAddress(query, { signal } = {}) {
     label: r.display_name,
     latitude: Number(r.lat),
     longitude: Number(r.lon),
+    city: extractCity(r.address),
   }));
+}
+
+/** city -> town -> village -> municipality -> null (HU-2.7). */
+function extractCity(address) {
+  if (!address) return null;
+  return address.city || address.town || address.village || address.municipality || null;
 }

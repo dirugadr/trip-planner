@@ -170,6 +170,7 @@ async function syncPoi(accommodation, coords) {
       await Poi.update(existing.id, {
         name: accommodation.name,
         address: accommodation.address,
+        city: accommodation.city,
       });
     }
     return;
@@ -181,6 +182,7 @@ async function syncPoi(accommodation, coords) {
     latitude: lat,
     longitude: lng,
     address: accommodation.address,
+    city: accommodation.city,
   };
 
   if (existing) {

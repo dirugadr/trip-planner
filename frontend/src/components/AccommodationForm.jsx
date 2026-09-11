@@ -113,8 +113,14 @@ export default function AccommodationForm({
         id="af-addr"
         label="Dirección * (buscá y elegí un resultado para ubicarlo en el mapa)"
         initialAddress={initial?.address ?? ''}
-        onResolve={({ address, latitude, longitude }) =>
-          setForm((f) => ({ ...f, address, latitude, longitude }))
+        onResolve={({ address, latitude, longitude, city }) =>
+          setForm((f) => ({
+            ...f,
+            address,
+            latitude,
+            longitude,
+            city: f.city.trim() === '' && city ? city : f.city,
+          }))
         }
         onInvalidate={(text) =>
           setForm((f) => ({ ...f, address: text, latitude: null, longitude: null }))

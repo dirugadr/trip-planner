@@ -4,6 +4,7 @@ import { sanitizeHttpUrl } from '../lib/url.js';
 import Trip from '../models/Trip.js';
 import InterestLink from '../models/InterestLink.js';
 import Tag from '../models/Tag.js';
+import PoiCategory from '../models/PoiCategory.js';
 
 const router = express.Router();
 
@@ -92,12 +93,28 @@ router.delete('/links/:id', async (req, res) => {
   }
 });
 
-// GET /api/trips/:tripId/tags — tags already used in the trip, for autocomplete
+// GET /api/trips/:tripId/tags — tags already used in the trip, for autocomplete.
+// Also always offers the 7 POI categories as base suggestions (ajuste
+// 2026-09-11) — they behave like any other tag once picked, just seeded in
+// so the list isn't empty on a trip with no links yet.
 router.get('/trips/:tripId/tags', async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.tripId);
     if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
-    res.json({ success: true, data: await Tag.findByTripId(trip.id) });
+
+    const used = await Tag.findByTripId(trip.id);
+    const categories = await PoiCategory.findAll();
+
+    const seen = new Set(used.map((t) => Tag.normalize(t.name)));
+    const suggestions = [...used];
+    for (const c of categories) {
+      const name = Tag.normalize(c.name);
+      if (seen.has(name)) continue;
+      seen.add(name);
+      suggestions.push({ id: c.id, name });
+    }
+
+    res.json({ success: true, data: suggestions });
   } catch (error) {
     serverError(res, error);
   }

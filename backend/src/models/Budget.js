@@ -36,12 +36,23 @@ export class Budget {
     const totalSpent = spentRows.reduce((s, r) => s + (r.spent || 0), 0);
     const totalAllocated = categories.reduce((s, c) => s + (c.allocated_budget || 0), 0);
 
+    // Informational only (ajuste HU-3.3/HU-3.4) — must NOT feed into `remaining`,
+    // which keeps using the full total_spent (paid + unpaid), same as before.
+    const pendingRows = await dbAll(
+      `SELECT SUM(amount) AS pending
+       FROM expenses
+       WHERE trip_id = ? AND deleted_at IS NULL AND is_paid = 0`,
+      [tripId]
+    );
+    const totalPending = pendingRows[0]?.pending || 0;
+
     return {
       trip_id: trip.id,
       currency_code: trip.currency_code,
       total_budget: trip.total_budget,
       total_allocated: totalAllocated,
       total_spent: totalSpent,
+      total_pending: totalPending,
       remaining: trip.total_budget != null ? trip.total_budget - totalSpent : null,
       over_budget: trip.total_budget != null && totalSpent > trip.total_budget,
       categories: cats

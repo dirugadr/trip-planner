@@ -29,6 +29,7 @@ async function validatePayload(body, { partial = false } = {}) {
   if ('payment_method_id' in body) out.payment_method_id = body.payment_method_id || null;
   if ('activity_id' in body) out.activity_id = body.activity_id || null;
   if ('currency_code' in body && body.currency_code) out.currency_code = body.currency_code;
+  if ('is_paid' in body) out.is_paid = body.is_paid ? 1 : 0;
 
   return { errors, out };
 }

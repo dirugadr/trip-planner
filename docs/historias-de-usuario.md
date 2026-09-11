@@ -272,12 +272,25 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - El sistema DEBE permitir seleccionar el método de pago: efectivo, tarjeta de crédito, tarjeta de débito, transferencia, billetera digital u otro.
 - El sistema DEBE permitir asociar el gasto a una actividad (opcional).
 - El sistema DEBE permitir una descripción opcional del gasto.
+- 🆕 *(2026-09-11)* El sistema DEBE permitir indicar si un gasto está pagado
+  o no (`expenses.is_paid`), al crearlo o editarlo. Un gasto nuevo DEBE
+  quedar marcado como **pagado** por defecto (`is_paid` default `true` a
+  nivel de columna) — los gastos ya existentes antes de este ajuste quedan
+  pagados automáticamente, mismo comportamiento implícito que ya tenían.
 
 ### HU-3.4 — Resumen de gastos ✅
 **Como** viajero, **quiero** ver gastado vs. asignado por categoría y en total, **para** saber cómo voy.
 
 - El sistema DEBE mostrar, por categoría: asignado, gastado y diferencia (`GET /api/trips/:id/budget`).
 - El sistema DEBE marcar las categorías excedidas (rojo + "Excedido").
+- 🆕 *(2026-09-11)* El sistema DEBE seguir calculando "Gastado" (y el
+  "Resto" disponible contra el presupuesto) como la suma de **todos** los
+  gastos, pagados y pendientes — sin cambios respecto al comportamiento
+  anterior. El sistema DEBE mostrar además un total "Pendiente" informativo,
+  en la misma línea donde se muestra "Gastado", con la suma de los gastos
+  no pagados (`is_paid = false`); no participa en el cálculo del disponible.
+  Los gastos no pagados se marcan visualmente en el listado con un chip
+  "Pendiente".
 
 ### HU-3.5 — Multi-moneda 💭
 **Como** viajero, **quiero** cargar gastos en distintas monedas y verlos convertidos, **para** un total real.

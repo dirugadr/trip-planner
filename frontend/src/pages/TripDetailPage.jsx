@@ -179,9 +179,14 @@ export default function TripDetailPage() {
                 Editar día
               </button>
               {day.activities.filter((a) => a.pois?.length > 0).length >= 2 && (
-                <button className="btn btn-secondary btn-sm" onClick={() => setSmartRouteDay(day)}>
-                  ✨ Sugerir recorrido
-                </button>
+                <>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setSmartRouteDay(day)}>
+                    ✨ Sugerir recorrido
+                  </button>
+                  <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/days/${day.id}/route`}>
+                    🗺️ Ver recorrido en el mapa
+                  </Link>
+                </>
               )}
               <button
                 className="btn btn-secondary btn-sm"

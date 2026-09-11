@@ -5,7 +5,6 @@ const empty = {
   description: '',
   start_time: '',
   duration_minutes: '',
-  location_name: '',
   url: '',
   tentative: false,
 };
@@ -35,7 +34,6 @@ export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submi
       description: form.description.trim() || null,
       start_time: form.start_time || null,
       duration_minutes: form.duration_minutes === '' ? null : Number(form.duration_minutes),
-      location_name: form.location_name.trim() || null,
       url: form.url.trim() || null,
       tentative: form.tentative ? 1 : 0,
     };
@@ -87,11 +85,6 @@ export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submi
       </div>
 
       <div className="field">
-        <label htmlFor="af-loc">Lugar</label>
-        <input id="af-loc" value={form.location_name} onChange={set('location_name')} />
-      </div>
-
-      <div className="field">
         <label htmlFor="af-url">Enlace</label>
         <input id="af-url" type="url" value={form.url} onChange={set('url')} placeholder="https://…" />
       </div>
@@ -120,7 +113,6 @@ function pickFields(activity) {
     description: activity.description ?? '',
     start_time: activity.start_time ?? '',
     duration_minutes: activity.duration_minutes ?? '',
-    location_name: activity.location_name ?? '',
     url: activity.url ?? '',
     tentative: !!activity.tentative,
   };

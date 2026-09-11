@@ -60,7 +60,13 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 **Como** viajero, **quiero** agregar una actividad a un día, **para** armar el plan de ese día.
 
 - El sistema DEBE pedir título como obligatorio.
-- El sistema DEBE permitir hora de inicio, duración, lugar, descripción y enlace.
+- El sistema DEBE permitir hora de inicio, duración, descripción y enlace.
+- 🗑️ *(2026-09-11)* Se sacó el campo de texto libre "Lugar" (`location_name`)
+  del formulario de actividad — quedaba redundante con la asociación real a
+  POIs de HU-2.3 (botón "Lugares", con dirección, coordenadas, mapa y
+  recorrido sugerido). La columna sigue en el schema por compatibilidad con
+  datos viejos, pero ya no se carga ni se muestra desde la UI. Para anotar
+  dónde es una actividad, usar Descripción (nota libre) o asociar un POI.
 
 ### HU-1.7 — Editar y eliminar una actividad ✅
 **Como** viajero, **quiero** modificar o borrar una actividad, **para** mantener el plan al día.

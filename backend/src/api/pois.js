@@ -49,7 +49,7 @@ export async function validatePoiPayload(body, { partial = false } = {}) {
     }
   }
 
-  for (const key of ['address', 'notes', 'description']) {
+  for (const key of ['address', 'city', 'notes', 'description']) {
     if (key in body) out[key] = (body[key] ?? '').toString().trim() || null;
   }
   if ('url' in body) {

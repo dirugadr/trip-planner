@@ -140,6 +140,11 @@ export default function BudgetPage() {
           <div>
             <div className="muted">Gastado</div>
             <strong>{formatMoney(budget.total_spent, currency)}</strong>
+            {budget.total_pending > 0 && (
+              <div className="muted" style={{ fontSize: '0.8rem' }}>
+                Pendiente: {formatMoney(budget.total_pending, currency)}
+              </div>
+            )}
           </div>
           <div>
             <div className="muted">Resto</div>
@@ -223,7 +228,10 @@ export default function BudgetPage() {
             <div className="expense-row" key={e.id}>
               <div className="expense-date">{formatDate(e.expense_date)}</div>
               <div className="expense-body">
-                <div style={{ fontWeight: 600 }}>{e.description || catById.get(e.category_id)?.name || 'Gasto'}</div>
+                <div style={{ fontWeight: 600 }}>
+                  {e.description || catById.get(e.category_id)?.name || 'Gasto'}
+                  {!e.is_paid && <span className="expense-pending-badge">Pendiente</span>}
+                </div>
                 <div className="muted">
                   {catById.get(e.category_id)?.name || '—'}
                   {e.payment_method_id && pmById.get(e.payment_method_id) && (

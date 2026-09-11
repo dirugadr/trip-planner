@@ -23,6 +23,7 @@ export default function ExpenseForm({
     activity_id: initial?.activity_id ?? '',
     expense_date: initial?.expense_date ?? today(),
     description: initial?.description ?? '',
+    is_paid: initial ? !!initial.is_paid : true,
   });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -56,6 +57,7 @@ export default function ExpenseForm({
         activity_id: form.activity_id || null,
         expense_date: form.expense_date,
         description: form.description.trim() || null,
+        is_paid: form.is_paid,
       });
     } catch (err) {
       setError(err.message);
@@ -142,6 +144,15 @@ export default function ExpenseForm({
           </select>
         </div>
       </div>
+
+      <label className="checkbox-field">
+        <input
+          type="checkbox"
+          checked={form.is_paid}
+          onChange={(e) => setForm((f) => ({ ...f, is_paid: e.target.checked }))}
+        />
+        <span>Pagado</span>
+      </label>
 
       <div className="row-between" style={{ marginTop: '1.25rem', justifyContent: 'flex-end' }}>
         <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>

@@ -16,6 +16,7 @@ export class Expense {
       currency_code: data.currency_code,
       description: data.description || null,
       expense_date: data.expense_date,
+      is_paid: data.is_paid != null ? (data.is_paid ? 1 : 0) : 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       deleted_at: null,
@@ -56,7 +57,8 @@ export class Expense {
       'amount',
       'currency_code',
       'description',
-      'expense_date'
+      'expense_date',
+      'is_paid'
     ];
     const patch = { updated_at: new Date().toISOString() };
     for (const key of allowed) {

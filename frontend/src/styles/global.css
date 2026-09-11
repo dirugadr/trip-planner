@@ -389,6 +389,18 @@ h3 {
   white-space: nowrap;
   padding-top: 0.1rem;
 }
+.expense-pending-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8a5a1b;
+  vertical-align: middle;
+}
 
 @media (max-width: 620px) {
   .budget-totals {

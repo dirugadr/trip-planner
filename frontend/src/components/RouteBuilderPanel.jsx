@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import ErrorMessage from './ErrorMessage.jsx';
 import { formatDuration } from '../utils/format.js';
-import { categoryEmoji } from '../utils/poiCategories.js';
 import { previewRouteDuration, smartOrderPois, createRouteTemplate, updateRouteTemplate } from '../services/routeTemplates.js';
 
 /**
@@ -78,55 +77,58 @@ export default function RouteBuilderPanel({ tripId, selected, onChangeOrder, onR
   };
 
   return (
-    <div className="route-builder">
-      <div className="row-between" style={{ marginBottom: '0.5rem' }}>
-        <strong>{editingTemplate ? 'Editar recorrido' : 'Armar recorrido'}</strong>
+    <div className="bg-surface rounded-2xl shadow-sm border border-outline-variant/20 p-4 h-fit">
+      <div className="flex items-center justify-between mb-1">
+        <div className="font-semibold text-[14px]">{editingTemplate ? 'Editar recorrido' : 'Armar recorrido'}</div>
+        <span className="text-[11px] text-on-surface-variant">{selected.length} lugares</span>
+      </div>
+      <div className="row-between mb-3">
+        <p className="text-[12px] text-on-surface-variant m-0">Tocá lugares en el mapa para agregarlos</p>
         <button className="btn-link" onClick={onCancel}>
           Cancelar
         </button>
       </div>
 
-      <p className="muted" style={{ marginTop: 0 }}>
-        Tocá lugares en el mapa para agregarlos, en el orden que quieras visitarlos.
-      </p>
-
       {selected.length === 0 ? (
         <div className="empty-state">Todavía no agregaste ningún lugar.</div>
       ) : (
         <>
-          <ol className="route-builder-list">
+          <div className="space-y-2 mb-3">
             {selected.map((p, i) => (
-              <li
+              <div
                 key={p.id}
                 draggable
                 onDragStart={() => setDragIndex(i)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(i)}
+                className="flex items-center gap-2 bg-surface-container-low rounded-lg p-2 cursor-grab"
               >
-                <span className="route-builder-handle" title="Arrastrar para reordenar">⠿</span>
-                <span>
-                  {categoryEmoji(p)} {p.name}
+                <span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {i + 1}
                 </span>
-                {reasons[p.id] && <div className="muted route-builder-reason">{reasons[p.id]}</div>}
-                <button className="btn-link" onClick={() => onRemove(p.id)} aria-label="Quitar">
-                  ✕
+                <span className="text-[13px] font-medium flex-1 truncate">{p.name}</span>
+                <button type="button" onClick={() => onRemove(p.id)} aria-label="Quitar" className="msi text-[16px] text-on-surface-variant/60">
+                  close
                 </button>
-              </li>
+                <span className="msi text-[16px] text-on-surface-variant/50">drag_indicator</span>
+                {reasons[p.id] && <div className="basis-full text-[12px] text-on-surface-variant">{reasons[p.id]}</div>}
+              </div>
             ))}
-          </ol>
+          </div>
 
-          <div className="route-builder-duration">
-            ⏱️ Duración total estimada: <strong>{formatDuration(totalMinutes) || '0 min'}</strong>
+          <div className="flex items-center justify-between text-[12px] text-on-surface-variant bg-surface-container-low rounded-lg px-3 py-2 mb-3">
+            <span>Duración total estimada</span>
+            <span className="font-semibold text-on-surface">{formatDuration(totalMinutes) || '0 min'}</span>
           </div>
 
           {orderError && <ErrorMessage error={orderError} />}
           <button
-            className="btn btn-ai"
+            className="btn btn-ai w-full justify-center mb-2"
             onClick={handleSmartOrder}
             disabled={selected.length < 3 || ordering}
-            style={{ marginBottom: '1rem' }}
           >
-            {ordering ? 'Pensando el mejor orden…' : '🧭 Ordenar automáticamente'}
+            <span className="msi text-[16px]">auto_awesome</span>
+            {ordering ? 'Pensando el mejor orden…' : 'Ordenar automáticamente'}
           </button>
 
           <div className="field">
@@ -135,7 +137,8 @@ export default function RouteBuilderPanel({ tripId, selected, onChangeOrder, onR
           </div>
 
           {saveError && <ErrorMessage error={saveError} />}
-          <button className="btn" onClick={handleSave} disabled={saving}>
+          <button className="btn btn-secondary w-full justify-center" onClick={handleSave} disabled={saving}>
+            <span className="msi text-[16px]">bookmark_add</span>
             {saving ? 'Guardando…' : 'Guardar recorrido'}
           </button>
         </>

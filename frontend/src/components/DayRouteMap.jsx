@@ -6,13 +6,7 @@ import 'leaflet/dist/leaflet.css';
 /** A numbered circular badge — a divIcon, so no external images. */
 function numberedIcon(n) {
   const html = `
-    <div style="
-      width: 28px; height: 28px; border-radius: 50%;
-      background: var(--primary, #2f6fed); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.85rem; font-weight: 700;
-      border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.35);
-    ">${n}</div>`;
+    <div class="w-7 h-7 rounded-full bg-primary text-on-primary text-[12px] font-bold flex items-center justify-center shadow-md border-2 border-white">${n}</div>`;
   return L.divIcon({
     html,
     className: 'route-view-pin',
@@ -51,7 +45,7 @@ export default function DayRouteMap({ stops, segments }) {
   const points = useMemo(() => stops.map((s) => [s.lat, s.lng]), [stops]);
 
   return (
-    <div className="map-wrap">
+    <div className="relative rounded-2xl overflow-hidden border border-outline-variant/20 shadow-sm h-[70vh] min-h-[360px]">
       <MapContainer center={[20, 0]} zoom={2} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -63,7 +57,7 @@ export default function DayRouteMap({ stops, segments }) {
             key={i}
             positions={seg.coordinates}
             pathOptions={{
-              color: '#2f6fed',
+              color: '#0051d5',
               weight: 4,
               opacity: seg.source === 'osrm' ? 0.8 : 0.6,
               dashArray: seg.source === 'osrm' ? undefined : '8 8',
@@ -73,11 +67,12 @@ export default function DayRouteMap({ stops, segments }) {
         {stops.map((s) => (
           <Marker key={s.activity_id} position={[s.lat, s.lng]} icon={numberedIcon(s.sequence_number)}>
             <Popup>
-              <strong>
-                {s.sequence_number}. {s.activity_name}
-              </strong>
-              <br />
-              <span className="muted">📍 {s.poi_name}</span>
+              <div className="p-2.5">
+                <strong className="text-[13px]">
+                  {s.sequence_number}. {s.activity_name}
+                </strong>
+                <div className="text-[11px] text-on-surface-variant mt-0.5">📍 {s.poi_name}</div>
+              </div>
             </Popup>
           </Marker>
         ))}

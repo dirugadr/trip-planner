@@ -48,6 +48,29 @@ export class Expense {
     return rows[0] || null;
   }
 
+  /** One linked expense per activity (an activity has at most one, per
+   * HU-3.3/3.4's payment flow); returns a Map(activityId → expense|null).
+   * Used by GET /api/trips/:id to show amount + Pagado/Pendiente on the
+   * itinerary (v2 UI). */
+  static async listForActivities(activityIds) {
+    const map = new Map(activityIds.map((id) => [id, null]));
+    if (activityIds.length === 0) return map;
+
+    const placeholders = activityIds.map(() => '?').join(', ');
+    const rows = await dbAll(
+      `SELECT id, activity_id, amount, currency_code, is_paid
+         FROM ${TABLE}
+        WHERE activity_id IN (${placeholders}) AND deleted_at IS NULL
+        ORDER BY expense_date DESC, created_at DESC`,
+      activityIds
+    );
+    for (const row of rows) {
+      const { activity_id, ...expense } = row;
+      if (map.has(activity_id) && !map.get(activity_id)) map.set(activity_id, expense);
+    }
+    return map;
+  }
+
   static async update(id, data) {
     const allowed = [
       'category_id',

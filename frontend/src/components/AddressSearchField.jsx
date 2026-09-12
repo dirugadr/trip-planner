@@ -26,7 +26,7 @@ export default function AddressSearchField({
   };
 
   return (
-    <div className="field poi-search">
+    <div className="field relative">
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
@@ -40,10 +40,10 @@ export default function AddressSearchField({
         }}
         placeholder="Escribí una dirección o lugar…"
       />
-      {searching && <div className="muted poi-search-hint">Buscando…</div>}
-      {error && <div className="muted poi-search-hint">{error}</div>}
+      {searching && <div className="muted -mt-2 mb-2">Buscando…</div>}
+      {error && <div className="muted -mt-2 mb-2">{error}</div>}
       {!searching && dirty && query.trim().length >= 3 && results.length === 0 && !error && (
-        <div className="muted poi-search-hint">Sin resultados. Probá con otra búsqueda.</div>
+        <div className="muted -mt-2 mb-2">Sin resultados. Probá con otra búsqueda.</div>
       )}
       {results.length > 0 && (
         <ul className="poi-results">

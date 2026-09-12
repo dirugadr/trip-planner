@@ -1,23 +1,22 @@
 import { formatDuration } from '../utils/format.js';
-import { categoryEmoji } from '../utils/poiCategories.js';
 
 export default function SavedRouteTemplates({ templates, onEdit, onDelete, onApply }) {
   if (templates.length === 0) {
     return <div className="empty-state">Todavía no guardaste ningún recorrido.</div>;
   }
-
   return (
-    <div>
+    <div className="space-y-2">
       {templates.map((t) => (
         <div className="card" key={t.id}>
           <div className="row-between">
-            <strong>{t.name}</strong>
-            <span className="muted">⏱️ {formatDuration(t.total_minutes) || '0 min'}</span>
+            <strong className="text-[15px]">{t.name}</strong>
+            <span className="muted flex items-center gap-1">
+              <span className="msi text-[14px]">schedule</span>
+              {formatDuration(t.total_minutes) || '0 min'}
+            </span>
           </div>
-          <div className="muted" style={{ margin: '0.35rem 0' }}>
-            {t.stops.map((s) => `${categoryEmoji(s)} ${s.name}`).join(' → ')}
-          </div>
-          <div className="activity-actions">
+          <div className="muted my-1.5">{t.stops.map((s) => s.name).join(' → ')}</div>
+          <div className="flex gap-2 flex-wrap mt-2">
             <button className="btn btn-sm" onClick={() => onApply(t)}>
               Aplicar a un día
             </button>

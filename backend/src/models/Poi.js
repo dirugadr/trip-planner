@@ -22,6 +22,8 @@ export class Poi {
       notes: data.notes ?? null,
       estimated_duration_minutes: data.estimated_duration_minutes ?? null,
       accommodation_id: data.accommodation_id ?? null,
+      photo_url: data.photo_url ?? null,
+      photo_source: data.photo_source ?? null,
       created_at: now,
       updated_at: now,
       deleted_at: null,
@@ -89,6 +91,18 @@ export class Poi {
 
   static delete(id, soft = true) {
     return deleteOne(TABLE, id, soft);
+  }
+
+  /** Sets the POI's photo — kept separate from update()/FIELDS so it can
+   * only be reached through the auto-lookup (photoLookup.js) or the manual
+   * upload endpoint, never through the general edit-POI payload. */
+  static async setPhoto(id, { url, source }) {
+    const ok = await updateOne(TABLE, id, {
+      photo_url: url,
+      photo_source: source,
+      updated_at: new Date().toISOString(),
+    });
+    return ok ? Poi.findById(id) : null;
   }
 }
 

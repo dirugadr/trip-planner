@@ -176,4 +176,102 @@ export function validatePoiOrderProposal(proposal, inputIds) {
   }
 }
 
+const AREA_ROUTE_TOOL = {
+  name: 'propose_area_route',
+  description:
+    'Elige entre 4 y 6 paradas para un recorrido a pie dentro de una zona del mapa, combinando lugares ya guardados por el viajero y descubrimientos nuevos cercanos, y las ordena.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      selected: {
+        type: 'array',
+        minItems: 4,
+        maxItems: 6,
+        items: {
+          type: 'object',
+          properties: {
+            candidate_id: { type: 'string', description: 'ID exacto del candidato, tal como vino en el input' },
+            reason: { type: 'string', description: 'Justificación breve, una oración' },
+          },
+          required: ['candidate_id', 'reason'],
+        },
+        description: 'Entre 4 y 6 candidatos, en el orden sugerido de visita',
+      },
+      summary: { type: 'string', description: 'Resumen de la propuesta, 1-2 oraciones' },
+    },
+    required: ['selected', 'summary'],
+  },
+};
+
+/**
+ * Ask Claude to pick 4-6 stops (a SUBSET, unlike proposeDayRoute/proposePoiOrder
+ * which must return every input item) out of a mixed pool of already-saved
+ * POIs and freshly-discovered OSM candidates (HU-2.6b), ordered for walking.
+ * `input`: { candidates: [{candidate_id, name, category, is_new, estimated_duration_minutes}],
+ *            walking_times_minutes: number[][] } (matrix indexed like candidates)
+ */
+export async function proposeAreaRoute(input) {
+  const anthropic = new Anthropic({ apiKey: config.anthropic.apiKey });
+
+  const prompt =
+    'Sos un asistente de planificación de viajes. Te paso una lista de lugares candidatos ' +
+    'dentro de una zona del mapa que el viajero está mirando — algunos ya los tiene guardados ' +
+    '(is_new: false), otros son descubrimientos nuevos cercanos (is_new: true) — junto con la ' +
+    'matriz de tiempos de caminata estimados entre cada par (walking_times_minutes[i][j], en ' +
+    'minutos, misma posición que candidates). Elegí entre 4 y 6 candidatos que tengan sentido ' +
+    'combinar en un recorrido a pie corto (mezclando guardados y nuevos si corresponde, no hace ' +
+    'falta usar todos de un tipo) y devolvelos en el mejor orden de visita. Usá el candidate_id ' +
+    'exacto de cada uno elegido.\n\n' +
+    JSON.stringify(input, null, 2);
+
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1500,
+      tools: [AREA_ROUTE_TOOL],
+      tool_choice: { type: 'tool', name: 'propose_area_route' },
+      messages: [{ role: 'user', content: prompt }],
+    });
+  } catch (err) {
+    const e = new Error(`No se pudo generar la sugerencia (API de Claude): ${err.message}`);
+    e.status = 502;
+    throw e;
+  }
+
+  const block = response.content.find((b) => b.type === 'tool_use');
+  if (!block?.input?.selected) {
+    const e = new Error('La API de Claude no devolvió una propuesta válida');
+    e.status = 502;
+    throw e;
+  }
+
+  validateAreaRouteProposal(
+    block.input,
+    input.candidates.map((c) => c.candidate_id)
+  );
+  return block.input;
+}
+
+/**
+ * Unlike validateProposal()/validatePoiOrderProposal() (exact set match),
+ * this only needs: 4-6 items, no duplicates, every id a real candidate —
+ * Claude is meant to narrow the pool down, not return all of it.
+ */
+export function validateAreaRouteProposal(proposal, candidateIds) {
+  const validIds = new Set(candidateIds);
+  const outIds = (proposal?.selected || []).map((s) => s.candidate_id);
+  const outSet = new Set(outIds);
+  const ok =
+    outIds.length >= 4 &&
+    outIds.length <= 6 &&
+    outSet.size === outIds.length &&
+    outIds.every((id) => validIds.has(id));
+  if (!ok) {
+    const e = new Error('La sugerencia de Claude no eligió entre 4 y 6 lugares válidos de la zona');
+    e.status = 502;
+    throw e;
+  }
+}
+
 export default proposeDayRoute;

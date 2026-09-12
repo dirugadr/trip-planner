@@ -33,6 +33,25 @@ export function formatDateRange(start, end) {
   return `${formatDate(start)} – ${formatDate(end)}`;
 }
 
+/** "09:00" + 150 -> "11:30". Returns '' if start_time/duration is missing. */
+export function formatEndTime(startTime, durationMinutes) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((startTime ?? '').toString().trim());
+  if (!m || !durationMinutes) return '';
+  const total = (Number(m[1]) * 60 + Number(m[2]) + durationMinutes) % (24 * 60);
+  const h = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+/** "Lun 14" — short weekday + day number, for the itinerary's day pills. */
+export function formatShortDay(value) {
+  if (!value) return '';
+  const d = new Date(value.length <= 10 ? `${value}T00:00:00` : value);
+  if (Number.isNaN(d.getTime())) return value;
+  const wd = weekdayFmt.format(d).replace('.', '');
+  return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${d.getDate()}`;
+}
+
 export function formatDuration(minutes) {
   if (!minutes) return '';
   const h = Math.floor(minutes / 60);

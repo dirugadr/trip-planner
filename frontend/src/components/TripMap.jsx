@@ -2,26 +2,36 @@ import { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { categoryColor, categoryEmoji } from '../utils/poiCategories.js';
+import { categoryMsi } from '../utils/poiCategories.js';
 import { safeUrl } from '../utils/safeUrl.js';
 import { formatDuration } from '../utils/format.js';
 
-/** A teardrop pin coloured by category — a divIcon, so no external images. */
-function pinIcon(color) {
+/** A small circular badge with the category's Material Symbol — blue for a
+ * regular POI, amber + sequence number when it's part of the route being
+ * built (matches mockup-mapa.html's marker language). */
+function poiIcon(msi) {
   const html = `
-    <svg width="28" height="36" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg"
-         style="filter: drop-shadow(0 2px 3px rgba(20,30,50,0.35))">
-      <path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.5 20 12 20.5.3.3.7.3 1 0 .5-.5 12-11.3 12-20.5C25 5.8 19.2 0 13 0z"
-            fill="${color}" stroke="#fff" stroke-width="1.5"/>
-      <circle cx="13" cy="13" r="5" fill="#fff"/>
-    </svg>`;
-  return L.divIcon({
-    html,
-    className: 'poi-pin',
-    iconSize: [28, 36],
-    iconAnchor: [14, 36],
-    popupAnchor: [0, -32],
-  });
+    <div class="w-6 h-6 rounded-full bg-secondary text-white flex items-center justify-center shadow-md border-2 border-white">
+      <span class="msi" style="font-size:13px">${msi}</span>
+    </div>`;
+  return L.divIcon({ html, className: 'poi-pin', iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -14] });
+}
+
+function routeStopIcon(n) {
+  const html = `
+    <div class="w-8 h-8 rounded-full bg-tertiary text-white text-[13px] font-bold flex items-center justify-center shadow-md border-2 border-white">${n}</div>`;
+  return L.divIcon({ html, className: 'poi-pin', iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -18] });
+}
+
+/** Hands the underlying Leaflet map instance up to the parent once, so it
+ * can read live state (e.g. getBounds() for HU-2.6b's area discovery)
+ * without this component needing to know why. */
+function MapInstanceReporter({ onReady }) {
+  const map = useMap();
+  useEffect(() => {
+    onReady?.(map);
+  }, [map, onReady]);
+  return null;
 }
 
 function FitBounds({ points }) {
@@ -50,74 +60,71 @@ function FitBounds({ points }) {
   return null;
 }
 
-export default function TripMap({ pois, selectable = false, selectedIds, onToggleSelect }) {
-  const points = useMemo(
-    () => pois.map((p) => [Number(p.latitude), Number(p.longitude)]),
-    [pois]
-  );
+export default function TripMap({ pois, selectable = false, selectedIds, onToggleSelect, selectedOrder, onMapReady }) {
+  const points = useMemo(() => pois.map((p) => [Number(p.latitude), Number(p.longitude)]), [pois]);
 
   return (
-    <div className="map-wrap">
+    <div className="relative rounded-2xl overflow-hidden border border-outline-variant/20 shadow-sm h-[70vh] min-h-[360px]">
       <MapContainer center={[20, 0]} zoom={2} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBounds points={points} />
-        {pois.map((p) => (
-          <Marker key={p.id} position={[Number(p.latitude), Number(p.longitude)]} icon={pinIcon(categoryColor(p))}>
-            <Popup>
-              <strong>
-                {categoryEmoji(p)} {p.name}
-              </strong>
-              <br />
-              <span className="muted">{p.category_name}</span>
-              {p.accommodation_id && (
-                <>
-                  <br />
-                  <span className="muted">🏨 Generado por el alojamiento</span>
-                </>
-              )}
-              {p.address && (
-                <>
-                  <br />
-                  {p.address}
-                </>
-              )}
-              {p.estimated_duration_minutes != null && (
-                <>
-                  <br />
-                  <span className="muted">⏱️ ~{formatDuration(p.estimated_duration_minutes)}</span>
-                </>
-              )}
-              {p.notes && (
-                <>
-                  <br />
-                  {p.notes}
-                </>
-              )}
-              {safeUrl(p.url) && (
-                <>
-                  <br />
-                  <a href={safeUrl(p.url)} target="_blank" rel="noreferrer">
-                    enlace
-                  </a>
-                </>
-              )}
-              {selectable && (
-                <div style={{ marginTop: '0.5rem' }}>
-                  <button
-                    type="button"
-                    className={`btn btn-sm${selectedIds?.has(p.id) ? ' btn-secondary' : ''}`}
-                    onClick={() => onToggleSelect?.(p.id)}
-                  >
-                    {selectedIds?.has(p.id) ? '✓ En el recorrido' : '➕ Agregar al recorrido'}
-                  </button>
+        {onMapReady && <MapInstanceReporter onReady={onMapReady} />}
+        {pois.map((p) => {
+          const sequence = selectedOrder?.get(p.id);
+          return (
+            <Marker
+              key={p.id}
+              position={[Number(p.latitude), Number(p.longitude)]}
+              icon={sequence ? routeStopIcon(sequence) : poiIcon(categoryMsi(p))}
+            >
+              <Popup>
+                <div className="flex w-64">
+                  {p.photo_url ? (
+                    <img className="w-20 h-20 object-cover shrink-0" src={p.photo_url} alt={p.name} />
+                  ) : (
+                    <div className="w-20 h-20 shrink-0 bg-surface-container-low flex items-center justify-center">
+                      <span className="msi text-[24px] text-on-surface-variant/50">{categoryMsi(p)}</span>
+                    </div>
+                  )}
+                  <div className="p-2.5 flex-1 min-w-0">
+                    <div className="font-semibold text-[13px] truncate">{p.name}</div>
+                    <div className="text-[11px] text-on-surface-variant mt-0.5 flex items-center gap-1">
+                      <span className="msi text-[13px]">{categoryMsi(p)}</span>
+                      {p.category_name}
+                      {p.estimated_duration_minutes != null && ` · ~${formatDuration(p.estimated_duration_minutes)}`}
+                    </div>
+                    {p.accommodation_id && (
+                      <div className="text-[11px] text-on-surface-variant mt-0.5">🏨 Generado por el alojamiento</div>
+                    )}
+                    {p.address && <div className="text-[11px] text-on-surface-variant mt-0.5 truncate">{p.address}</div>}
+                    {safeUrl(p.url) && (
+                      <a
+                        className="block text-[11px] text-secondary font-semibold mt-1"
+                        href={safeUrl(p.url)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Ver enlace
+                      </a>
+                    )}
+                    {selectable && (
+                      <button
+                        type="button"
+                        className={`text-[11px] font-semibold mt-1.5 ${selectedIds?.has(p.id) ? 'text-tertiary' : 'text-secondary'}`}
+                        onClick={() => onToggleSelect?.(p.id)}
+                      >
+                        {selectedIds?.has(p.id) ? '✓ En el recorrido' : '+ Agregar al recorrido'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </Popup>
-          </Marker>
-        ))}
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );

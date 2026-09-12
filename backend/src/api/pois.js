@@ -1,12 +1,35 @@
 import express from 'express';
 import { serverError } from '../lib/http.js';
+import multer from 'multer';
 import Trip from '../models/Trip.js';
 import Poi from '../models/Poi.js';
 import PoiCategory from '../models/PoiCategory.js';
 import ActivityPoi from '../models/ActivityPoi.js';
 import { sanitizeHttpUrl } from '../lib/url.js';
+import { lookupPhotoNear } from '../lib/photoLookup.js';
+import { blobConfigError } from '../config/index.js';
+import { uploadBlob } from '../lib/blob.js';
+import { checkImageFile, MAX_FILE_BYTES } from '../lib/fileTypes.js';
 
 const router = express.Router();
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_BYTES } });
+
+function uploadSingle(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'La imagen supera el límite de 5 MB.' : 'No se pudo procesar la imagen.';
+      return res.status(400).json({ success: false, error: msg });
+    }
+    next();
+  });
+}
+
+function guardBlob(req, res, next) {
+  const err = blobConfigError();
+  if (err) return res.status(503).json({ success: false, error: err });
+  next();
+}
 
 /**
  * Validate the POI payload. The frontend geocodes the address (Nominatim) and
@@ -105,7 +128,12 @@ router.post('/trips/:tripId/pois', async (req, res) => {
     if (!('latitude' in out)) errors.push('Falta la ubicación');
     if (errors.length) return res.status(400).json({ success: false, error: errors.join('. ') });
 
-    const poi = await Poi.create({ trip_id: trip.id, ...out });
+    let poi = await Poi.create({ trip_id: trip.id, ...out });
+
+    // Foto por lugar: best-effort, never blocks creating the POI.
+    const photo = await lookupPhotoNear(poi.latitude, poi.longitude);
+    if (photo) poi = (await Poi.setPhoto(poi.id, photo)) || poi;
+
     res.status(201).json({ success: true, data: poi });
   } catch (error) {
     serverError(res, error);
@@ -121,7 +149,38 @@ router.put('/pois/:id', async (req, res) => {
     const { errors, out } = await validatePoiPayload(req.body, { partial: true });
     if (errors.length) return res.status(400).json({ success: false, error: errors.join('. ') });
 
-    const updated = await Poi.update(req.params.id, out);
+    let updated = await Poi.update(req.params.id, out);
+
+    // Only re-run the automatic lookup when the location actually moved, and
+    // never overwrite a photo the traveler chose themselves.
+    const locationChanged =
+      'latitude' in out && (out.latitude !== poi.latitude || out.longitude !== poi.longitude);
+    if (updated && locationChanged && poi.photo_source !== 'manual') {
+      const photo = await lookupPhotoNear(updated.latitude, updated.longitude);
+      if (photo) updated = (await Poi.setPhoto(updated.id, photo)) || updated;
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    serverError(res, error);
+  }
+});
+
+// POST /api/pois/:id/photo — upload a manual photo (multipart/form-data), replaces any existing one
+router.post('/pois/:id/photo', guardBlob, uploadSingle, async (req, res) => {
+  try {
+    const poi = await Poi.findById(req.params.id);
+    if (!poi) return res.status(404).json({ success: false, error: 'POI not found' });
+
+    const file = req.file;
+    if (!file) return res.status(400).json({ success: false, error: 'Falta la imagen' });
+
+    const fileError = checkImageFile(file.mimetype, file.buffer, file.size);
+    if (fileError) return res.status(400).json({ success: false, error: fileError });
+
+    const stored = await uploadBlob(`pois/${poi.id}/${file.originalname}`, file.buffer, file.mimetype);
+    const updated = await Poi.setPhoto(poi.id, { url: stored.url, source: 'manual' });
+
     res.json({ success: true, data: updated });
   } catch (error) {
     serverError(res, error);

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext.jsx';
-import BrandMark from '../components/BrandMark.jsx';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID_TP;
 
@@ -28,23 +27,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-wrap">
-      <div className="card login-card">
-        <h1
-          style={{
-            marginBottom: '0.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <BrandMark size={28} />
+    <div className="flex justify-center pt-16 px-4">
+      <div className="card max-w-[380px] w-full text-center">
+        <h1 className="text-[20px] font-bold mb-1 flex items-center justify-center gap-2">
+          <span className="msi text-secondary text-[28px]">travel_explore</span>
           Trip Planner
         </h1>
-        <p className="muted" style={{ marginTop: 0 }}>
-          Entrá con tu cuenta de Google habilitada.
-        </p>
+        <p className="muted mt-0 mb-4">Entrá con tu cuenta de Google habilitada.</p>
 
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -55,11 +44,8 @@ export default function LoginPage() {
         ) : busy ? (
           <p className="muted">Verificando…</p>
         ) : (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <GoogleLogin
-              onSuccess={handleSuccess}
-              onError={() => setError('No se pudo iniciar sesión con Google')}
-            />
+          <div className="flex justify-center">
+            <GoogleLogin onSuccess={handleSuccess} onError={() => setError('No se pudo iniciar sesión con Google')} />
           </div>
         )}
       </div>

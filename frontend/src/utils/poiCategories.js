@@ -17,6 +17,18 @@ const EMOJI_BY_ICON = {
   circle: '📍',
 };
 
+// Material Symbols name per category icon — used by the v2 design system
+// (msi ligature font) wherever the old emoji mapping used to render.
+const MSI_BY_ICON = {
+  landmark: 'attractions',
+  train: 'train',
+  bed: 'hotel',
+  utensils: 'restaurant',
+  leaf: 'park',
+  palette: 'museum',
+  circle: 'place',
+};
+
 /** A CSS-safe hex colour for the POI's category, or a grey fallback. */
 export function categoryColor(poi) {
   const c = poi?.category_color;
@@ -26,4 +38,9 @@ export function categoryColor(poi) {
 /** An emoji for the POI's category icon name, or a generic pin. */
 export function categoryEmoji(poi) {
   return EMOJI_BY_ICON[poi?.category_icon] || '📍';
+}
+
+/** A Material Symbols icon name for the POI's category, or a generic pin. */
+export function categoryMsi(poi) {
+  return MSI_BY_ICON[poi?.category_icon] || 'place';
 }

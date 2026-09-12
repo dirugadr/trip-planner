@@ -694,3 +694,81 @@ Detalle completo, protecciones y riesgos aceptados en
   asociado en un popup.
 - Sin controles de edición de ningún tipo — a diferencia de HU-2.5/HU-2.6,
   esta pantalla no permite reordenar, editar ni aplicar cambios.
+
+## Frontend v2 — reconstrucción visual y de navegación
+
+> No es una épica de negocio, sino un cambio transversal: reescritura
+> completa del frontend (Tailwind real, tipografía Plus Jakarta Sans,
+> íconos Material Symbols) sobre el mismo backend/API/base de datos, más
+> las dos historias nuevas que siguen abajo. El backend **no cambió de
+> estructura** — las únicas adiciones fueron un enriquecimiento del
+> `GET /api/trips/:id` existente (documento y gasto vinculados por
+> actividad) y las dos features nuevas de esta sección.
+
+Navegación de **5 solapas** por viaje (antes 7): Itinerario, **Mapa &
+Lugares** (fusiona Mapa + Lugares con un toggle interno Lista/Mapa,
+compartiendo los filtros de categoría/ciudad de HU-2.7 entre ambas vistas),
+Presupuesto, Alojamientos, **Documentos & Links** (fusiona Documentos +
+Links con un toggle interno). El Itinerario pasa de mostrar todos los días
+apilados a una navegación horizontal de "pills" con el detalle de un solo
+día activo — banner de conflicto de horario (HU-1.8) ahora persistente en
+la pantalla (antes solo aparecía dentro del formulario de actividad),
+resumen de caminata total / tiempo en tránsito / gastado del día (derivado
+en el cliente de `GET /days/:dayId/route-view`, HU-11.1, sin request nuevo).
+
+### Foto por lugar (POI) ✅
+**Como** viajero, **quiero** que cada lugar tenga una foto, **para** reconocerlo de un vistazo en la lista, el mapa y el itinerario.
+
+- El sistema DEBE intentar obtener automáticamente una foto del lugar al
+  crear un POI, y al editarlo si su ubicación cambió — buscando en Wikipedia
+  (GeoSearch + PageImages, sin API key) dentro de un radio de 300m del punto
+  resuelto. Verificado contra la API real: Sagrada Família y Kinkaku-ji
+  devuelven foto; una coordenada sin nada cerca devuelve `null` sin romper
+  la creación del POI.
+- El sistema NUNCA DEBE pisar una foto subida a mano (`photo_source:
+  'manual'`) con un resultado automático, incluso si la ubicación del POI
+  cambia después — verificado moviendo un POI con foto manual (no se tocó)
+  y uno con foto automática (se actualizó a la del nuevo lugar).
+  `pois_saved.photo_url`/`photo_source` (migración 016).
+- El sistema DEBE permitir subir o reemplazar la foto en cualquier momento
+  (`POST /api/pois/:id/photo`, JPG/PNG máx. 5MB, mismo mecanismo de Vercel
+  Blob que Documentos/HU-6.1).
+- La foto se muestra en: lista de lugares, popup del mapa, tarjeta de
+  actividad del itinerario (con su POI principal), tarjeta de alojamiento
+  (vía su POI vinculado, HU-8.6) y tarjeta de la lista de viajes (foto de
+  portada = la del POI guardado más antiguo del viaje que tenga una).
+
+### HU-2.6b — Sugerir recorrido según el área visible del mapa ✅
+**Como** viajero, **quiero** que se me sugieran lugares para visitar en la zona que estoy mirando en el mapa, **para** descubrir sitios que no conocía sin salir de la app.
+
+- Un botón "✨ Sugerir recorrido en esta zona" en la vista Mapa toma los
+  límites (`bounds`) actuales del mapa de Leaflet.
+- El sistema DEBE rechazar un área mayor a 4 km², indicando que hay que
+  acercar el zoom — verificado en vivo (bounds de ~17 km² rechazado, bounds
+  de ~1 km² aceptado).
+- El sistema DEBE buscar lugares nuevos en esa área vía Overpass API
+  (`tourism=attraction/museum/hotel`, `amenity=restaurant/cafe`,
+  `leisure=park`, `natural=*`, `railway=station`, sin nombre descartados,
+  tope de 30 candidatos), y sumarlos a los POIs ya guardados dentro de la
+  misma área (deduplicados por nombre). Best-effort: si Overpass falla o
+  está lento (el endpoint público es notoriamente inestable — confirmado en
+  este entorno, ver `poiDiscovery.js`), la propuesta sigue adelante solo con
+  los POIs ya guardados si alcanzan; si no hay al menos 4 candidatos en
+  total, se informa el motivo en vez de fallar en silencio.
+- El sistema DEBE proponer 4 a 6 paradas combinando guardados y
+  descubrimientos (`propose_area_route`, Claude tool-use forzado, mismo
+  patrón que HU-2.5/HU-2.6 pero **eligiendo un subconjunto** en vez de
+  reordenar el total — `validateAreaRouteProposal` verificado con 5 casos:
+  selección válida, <4, >6, id inexistente y duplicado). El tiempo de
+  caminata entre candidatos usa una variante de la matriz de HU-2.5
+  (`estimateWalkMatrix`) sin caché — los candidatos nuevos no tienen un
+  `poi_id` real todavía para cachear contra él.
+- La propuesta distingue visualmente los descubrimientos nuevos (badge
+  "Nuevo") de los ya guardados, y permite sacar paradas antes de confirmar.
+  Nada se persiste hasta confirmar — descartar la propuesta no crea POIs.
+- AL confirmar, el sistema DEBE crear como POI real (`POST
+  /trips/:tripId/pois`, disparando también la búsqueda automática de foto
+  de arriba) solo los descubrimientos que quedaron en la versión final, y
+  reusa el flujo existente de "armar recorrido" (HU-2.6) — la confirmación
+  precarga el panel de armado con las paradas ya resueltas, en vez de tener
+  su propio mecanismo de guardado.

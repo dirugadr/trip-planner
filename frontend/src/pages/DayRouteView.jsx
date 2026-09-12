@@ -27,15 +27,13 @@ export default function DayRouteView() {
   const { stops, segments, activities_without_poi_count: withoutPoiCount } = routeView;
 
   return (
-    <div>
-      <div style={{ marginBottom: '1rem' }}>
-        <Link to={`/trips/${id}`} className="btn-link">
-          ← Volver al itinerario
-        </Link>
-      </div>
+    <div className="max-w-4xl mx-auto px-6 py-6">
+      <Link to={`/trips/${id}`} className="btn-link inline-block mb-4">
+        ← Volver al itinerario
+      </Link>
 
-      <h1 style={{ marginBottom: '0.2rem' }}>Recorrido del día</h1>
-      <div className="muted" style={{ marginBottom: '1rem' }}>
+      <h1 className="text-[22px] font-bold mb-0.5">Recorrido del día</h1>
+      <div className="muted mb-4">
         {day ? formatDayHeading(day.date) : trip.name}
         {day?.title && ` — ${day.title}`}
       </div>

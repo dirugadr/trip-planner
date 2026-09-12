@@ -39,6 +39,28 @@ export class Document {
     );
   }
 
+  /** Same as findByTripId's per-activity shape, but for many activities at
+   * once; returns a Map(activityId → document[]). Used by GET /api/trips/:id
+   * to show a "documento adjunto" indicator on the itinerary (v2 UI). */
+  static async listForActivities(activityIds) {
+    const map = new Map(activityIds.map((id) => [id, []]));
+    if (activityIds.length === 0) return map;
+
+    const placeholders = activityIds.map(() => '?').join(', ');
+    const rows = await dbAll(
+      `SELECT id, activity_id, title, file_name, file_type
+         FROM ${TABLE}
+        WHERE activity_id IN (${placeholders}) AND deleted_at IS NULL
+        ORDER BY uploaded_at DESC`,
+      activityIds
+    );
+    for (const row of rows) {
+      const { activity_id, ...doc } = row;
+      if (map.has(activity_id)) map.get(activity_id).push(doc);
+    }
+    return map;
+  }
+
   /** Hard delete — the blob is removed too, no point keeping an orphan row. */
   static hardDelete(id) {
     return dbRun(`DELETE FROM ${TABLE} WHERE id = ?`, [id]);

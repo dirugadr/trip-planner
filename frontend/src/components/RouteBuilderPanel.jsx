@@ -115,13 +115,13 @@ export default function RouteBuilderPanel({ tripId, selected, onChangeOrder, onR
             ))}
           </ol>
 
-          <div className="muted" style={{ margin: '0.5rem 0' }}>
-            ⏱️ Duración total estimada: {formatDuration(totalMinutes) || '0 min'}
+          <div className="route-builder-duration">
+            ⏱️ Duración total estimada: <strong>{formatDuration(totalMinutes) || '0 min'}</strong>
           </div>
 
           {orderError && <ErrorMessage error={orderError} />}
           <button
-            className="btn btn-secondary"
+            className="btn btn-ai"
             onClick={handleSmartOrder}
             disabled={selected.length < 3 || ordering}
             style={{ marginBottom: '1rem' }}

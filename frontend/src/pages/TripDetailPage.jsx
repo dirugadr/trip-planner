@@ -230,7 +230,7 @@ export default function TripDetailPage() {
               </button>
               {day.activities.filter((a) => a.pois?.length > 0).length >= 2 && (
                 <>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setSmartRouteDay(day)}>
+                  <button className="btn btn-ai btn-sm" onClick={() => setSmartRouteDay(day)}>
                     ✨ Sugerir recorrido
                   </button>
                   <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/days/${day.id}/route`}>

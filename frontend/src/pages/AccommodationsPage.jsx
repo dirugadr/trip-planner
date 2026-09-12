@@ -5,18 +5,12 @@ import { useConfirm } from '../hooks/useConfirm.jsx';
 import { getTrip } from '../services/trips.js';
 import { listBudgetCategories, listPaymentMethods, listExpenses } from '../services/budget.js';
 import { listPois } from '../services/pois.js';
-import {
-  listAccommodations,
-  createAccommodation,
-  updateAccommodation,
-  deleteAccommodation,
-} from '../services/accommodations.js';
+import { listAccommodations, createAccommodation, updateAccommodation, deleteAccommodation } from '../services/accommodations.js';
 import { formatDateTime, formatMoney } from '../utils/format.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
 import AccommodationForm from '../components/AccommodationForm.jsx';
-import TripTabs from '../components/TripTabs.jsx';
 import { safeUrl } from '../utils/safeUrl.js';
 
 export default function AccommodationsPage() {
@@ -61,12 +55,8 @@ export default function AccommodationsPage() {
 
   const { accommodations, categories, paymentMethods, expenses, trip, pois } = data;
   const currency = trip.currency_code || 'USD';
-  const expenseByAcc = new Map(
-    expenses.filter((e) => e.accommodation_id).map((e) => [e.accommodation_id, e])
-  );
-  const poiByAcc = new Map(
-    pois.filter((p) => p.accommodation_id).map((p) => [p.accommodation_id, p])
-  );
+  const expenseByAcc = new Map(expenses.filter((e) => e.accommodation_id).map((e) => [e.accommodation_id, e]));
+  const poiByAcc = new Map(pois.filter((p) => p.accommodation_id).map((p) => [p.accommodation_id, p]));
 
   const handleSubmit = (payload) =>
     run(async () => {
@@ -83,10 +73,7 @@ export default function AccommodationsPage() {
     const ok = await confirm({
       title: 'Eliminar alojamiento',
       message: linked
-        ? `¿Eliminar "${a.name}"? También se borrará el gasto vinculado (${formatMoney(
-            linked.amount,
-            linked.currency_code
-          )}).`
+        ? `¿Eliminar "${a.name}"? También se borrará el gasto vinculado (${formatMoney(linked.amount, linked.currency_code)}).`
         : `¿Eliminar "${a.name}"?`,
     });
     if (!ok) return;
@@ -94,78 +81,83 @@ export default function AccommodationsPage() {
   };
 
   return (
-    <div>
-      <TripTabs tripId={id} />
-
-      {actionError && <ErrorMessage error={actionError} />}
-
-      <div className="row-between" style={{ marginBottom: '1rem' }}>
-        <div>
-          <h1 style={{ marginBottom: '0.2rem' }}>Alojamientos</h1>
-          <div className="muted">{trip.name}</div>
-        </div>
+    <div className="max-w-3xl mx-auto px-6 py-6">
+      <div className="row-between mb-4">
+        <h1 className="text-[22px] font-bold">Alojamientos</h1>
         <button className="btn" onClick={() => setModal({})}>
-          + Alojamiento
+          <span className="msi text-[16px]">add</span>Nuevo alojamiento
         </button>
       </div>
+
+      {actionError && <ErrorMessage error={actionError} />}
+      <div className="muted mb-3">{trip.name}</div>
 
       {accommodations.length === 0 ? (
         <div className="empty-state">Todavía no cargaste alojamientos.</div>
       ) : (
-        accommodations.map((a) => {
-          const linked = expenseByAcc.get(a.id);
-          return (
-            <div className="card" key={a.id}>
-              <div className="row-between">
-                <div>
-                  <h3 style={{ marginBottom: '0.15rem' }}>
-                    {a.name} <span className="tag">{a.city}</span>
-                  </h3>
-                  <div className="muted">
-                    {formatDateTime(a.check_in)} → {formatDateTime(a.check_out)}
+        <div className="space-y-3">
+          {accommodations.map((a) => {
+            const linked = expenseByAcc.get(a.id);
+            const poi = poiByAcc.get(a.id);
+            return (
+              <div key={a.id} className="bg-surface rounded-2xl shadow-sm border border-outline-variant/20 overflow-hidden flex">
+                {poi?.photo_url ? (
+                  <img className="w-28 h-auto object-cover shrink-0" src={poi.photo_url} alt={a.name} />
+                ) : (
+                  <div className="w-28 shrink-0 bg-surface-container-low flex items-center justify-center">
+                    <span className="msi text-[32px] text-on-surface-variant/50">hotel</span>
                   </div>
-                  <div className="muted">{a.address}</div>
-                  <div className="muted stack-sm">
+                )}
+                <div className="p-4 flex-1 min-w-0">
+                  <div className="row-between">
+                    <div className="font-semibold text-[15px] truncate">
+                      {a.name} <span className="tag">{a.city}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {linked && <span className="text-[13px] font-semibold">{formatMoney(linked.amount, linked.currency_code)}</span>}
+                      <button className="btn-icon msi text-[16px] text-on-surface-variant" onClick={() => setModal({ accommodation: a })} aria-label="Editar">
+                        edit
+                      </button>
+                      <button className="btn-icon msi text-[16px] text-error" onClick={() => handleDelete(a)} aria-label="Eliminar">
+                        delete
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-[12px] text-on-surface-variant flex items-center gap-1 mt-1">
+                    <span className="msi text-[14px]">location_on</span>
+                    {a.address}
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-[12px] text-on-surface-variant flex-wrap">
+                    <span className="flex items-center gap-1">
+                      <span className="msi text-[14px]">login</span>
+                      {formatDateTime(a.check_in)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="msi text-[14px]">logout</span>
+                      {formatDateTime(a.check_out)}
+                    </span>
                     {a.phone && <span>📞 {a.phone}</span>}
                     {a.email && <span>✉️ {a.email}</span>}
                     {safeUrl(a.booking_url) && (
-                      <span>
-                        <a href={safeUrl(a.booking_url)} target="_blank" rel="noreferrer">
-                          reserva
-                        </a>
-                      </span>
+                      <a href={safeUrl(a.booking_url)} target="_blank" rel="noreferrer" className="text-secondary font-medium">
+                        Ver reserva
+                      </a>
                     )}
                   </div>
-                  {linked && (
-                    <div style={{ marginTop: '0.35rem' }}>
-                      <span className="tag">Pagado {formatMoney(linked.amount, linked.currency_code)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="activity-actions">
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setModal({ accommodation: a })}
-                  >
-                    Editar
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(a)}>
-                    Eliminar
-                  </button>
+                  <div className="flex items-center gap-1 mt-2 text-[11px] text-secondary font-medium">
+                    <span className="msi text-[13px]">check_circle</span>Actividades de check-in/out generadas
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })
+            );
+          })}
+        </div>
       )}
 
       {confirmNode}
 
       {modal && (
-        <Modal
-          title={modal.accommodation ? 'Editar alojamiento' : 'Nuevo alojamiento'}
-          onClose={() => setModal(null)}
-        >
+        <Modal title={modal.accommodation ? 'Editar alojamiento' : 'Nuevo alojamiento'} onClose={() => setModal(null)}>
           <AccommodationForm
             initial={modal.accommodation}
             linkedExpense={modal.accommodation ? expenseByAcc.get(modal.accommodation.id) : null}

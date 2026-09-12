@@ -23,6 +23,17 @@ function routeStopIcon(n) {
   return L.divIcon({ html, className: 'poi-pin', iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -18] });
 }
 
+/** Hands the underlying Leaflet map instance up to the parent once, so it
+ * can read live state (e.g. getBounds() for HU-2.6b's area discovery)
+ * without this component needing to know why. */
+function MapInstanceReporter({ onReady }) {
+  const map = useMap();
+  useEffect(() => {
+    onReady?.(map);
+  }, [map, onReady]);
+  return null;
+}
+
 function FitBounds({ points }) {
   const map = useMap();
   useEffect(() => {
@@ -49,7 +60,7 @@ function FitBounds({ points }) {
   return null;
 }
 
-export default function TripMap({ pois, selectable = false, selectedIds, onToggleSelect, selectedOrder }) {
+export default function TripMap({ pois, selectable = false, selectedIds, onToggleSelect, selectedOrder, onMapReady }) {
   const points = useMemo(() => pois.map((p) => [Number(p.latitude), Number(p.longitude)]), [pois]);
 
   return (
@@ -60,6 +71,7 @@ export default function TripMap({ pois, selectable = false, selectedIds, onToggl
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBounds points={points} />
+        {onMapReady && <MapInstanceReporter onReady={onMapReady} />}
         {pois.map((p) => {
           const sequence = selectedOrder?.get(p.id);
           return (

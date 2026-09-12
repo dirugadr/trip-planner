@@ -14,6 +14,7 @@ import PoiFilterBar from '../components/PoiFilterBar.jsx';
 import RouteBuilderPanel from '../components/RouteBuilderPanel.jsx';
 import SavedRouteTemplates from '../components/SavedRouteTemplates.jsx';
 import ApplyRouteModal from '../components/ApplyRouteModal.jsx';
+import DiscoverRouteModal from '../components/DiscoverRouteModal.jsx';
 import { categoryMsi } from '../utils/poiCategories.js';
 import { applyPoiFilters, citiesOf } from '../utils/poiFilters.js';
 import { usePoiFilters } from '../hooks/usePoiFilters.js';
@@ -60,6 +61,8 @@ export default function MapaLugaresPage() {
   const [selected, setSelected] = useState([]); // ordered POI objects
   const [applyTarget, setApplyTarget] = useState(null); // template being applied
   const [actionError, setActionError] = useState(null);
+  const [mapInstance, setMapInstance] = useState(null);
+  const [discoverBounds, setDiscoverBounds] = useState(null); // truthy opens DiscoverRouteModal
 
   const run = async (fn) => {
     setActionError(null);
@@ -114,6 +117,23 @@ export default function MapaLugaresPage() {
     run(() => deleteRouteTemplate(t.id));
   };
 
+  const openDiscovery = () => {
+    if (!mapInstance) return;
+    const b = mapInstance.getBounds();
+    setDiscoverBounds({
+      south: b.getSouth(),
+      west: b.getWest(),
+      north: b.getNorth(),
+      east: b.getEast(),
+    });
+  };
+  const handleDiscoveryConfirmed = (realPois) => {
+    setDiscoverBounds(null);
+    setBuilding({ editingTemplate: null });
+    setSelected(realPois);
+    reload();
+  };
+
   const selectedOrder = new Map(selected.map((p, i) => [p.id, i + 1]));
 
   return (
@@ -127,126 +147,130 @@ export default function MapaLugaresPage() {
               <span className="msi text-[16px]">add</span>Lugar
             </button>
           )}
-          {view === 'mapa' && !building && pois.length > 0 && (
-            <button className="btn" onClick={() => startBuilding()}>
-              <span className="msi text-[16px]">explore</span>Armar recorrido
-            </button>
+          {view === 'mapa' && !building && (
+            <>
+              <button className="btn btn-ai" onClick={openDiscovery} disabled={!mapInstance}>
+                <span className="msi text-[16px]">auto_awesome</span>Sugerir recorrido en esta zona
+              </button>
+              {pois.length > 0 && (
+                <button className="btn" onClick={() => startBuilding()}>
+                  <span className="msi text-[16px]">explore</span>Armar recorrido
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
 
       {actionError && <ErrorMessage error={actionError} />}
 
-      {pois.length === 0 ? (
-        <div className="empty-state">Este viaje todavía no tiene lugares. Usá "+ Lugar" para agregar el primero.</div>
-      ) : (
-        <>
-          {!building && (
-            <PoiFilterBar
-              categories={categories}
-              cities={cities}
-              filters={filters}
-              onToggleCategory={toggleCategory}
-              onSetCity={setCity}
-              onClear={clear}
-              isActive={isActive}
-            />
-          )}
+      {!building && pois.length > 0 && (
+        <PoiFilterBar
+          categories={categories}
+          cities={cities}
+          filters={filters}
+          onToggleCategory={toggleCategory}
+          onSetCity={setCity}
+          onClear={clear}
+          isActive={isActive}
+        />
+      )}
 
-          {view === 'lista' ? (
-            filteredPois.length === 0 ? (
-              <div className="empty-state">
-                Ningún lugar coincide con el filtro.{' '}
-                <button className="btn-link" onClick={clear}>
-                  Limpiar filtros
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredPois.map((p) => (
-                  <div key={p.id} className="bg-surface rounded-xl shadow-sm border border-outline-variant/20 overflow-hidden flex">
-                    {p.photo_url ? (
-                      <img className="w-20 h-20 object-cover shrink-0" src={p.photo_url} alt={p.name} />
-                    ) : (
-                      <div className="w-20 h-20 shrink-0 bg-surface-container-low flex items-center justify-center">
-                        <span className="msi text-[26px] text-on-surface-variant/50">{categoryMsi(p)}</span>
-                      </div>
-                    )}
-                    <div className="p-3 flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold text-[14px] truncate">
-                          {p.accommodation_id && '🏨 '}
-                          {p.name}
-                        </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <button className="btn btn-secondary btn-sm" onClick={() => setPoiModal({ poi: p })}>
-                            Editar
-                          </button>
-                          {!p.accommodation_id && (
-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeletePoi(p)}>
-                              Eliminar
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-[12px] text-on-surface-variant flex items-center gap-1 mt-0.5">
-                        <span className="msi text-[13px]">{categoryMsi(p)}</span>
-                        {p.category_name}
-                        {p.city && ` · ${p.city}`}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : (
-            <>
-              <div className={building ? 'grid grid-cols-1 md:grid-cols-3 gap-4' : ''}>
-                {building && (
-                  <div className="order-2 md:order-1">
-                    <RouteBuilderPanel
-                      tripId={id}
-                      selected={selected}
-                      onChangeOrder={setSelected}
-                      onRemove={toggleSelect}
-                      editingTemplate={building.editingTemplate}
-                      onSaved={handleSavedRoute}
-                      onCancel={cancelBuilding}
-                    />
+      {view === 'lista' ? (
+        pois.length === 0 ? (
+          <div className="empty-state">Este viaje todavía no tiene lugares. Usá "+ Lugar" para agregar el primero.</div>
+        ) : filteredPois.length === 0 ? (
+          <div className="empty-state">
+            Ningún lugar coincide con el filtro.{' '}
+            <button className="btn-link" onClick={clear}>
+              Limpiar filtros
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredPois.map((p) => (
+              <div key={p.id} className="bg-surface rounded-xl shadow-sm border border-outline-variant/20 overflow-hidden flex">
+                {p.photo_url ? (
+                  <img className="w-20 h-20 object-cover shrink-0" src={p.photo_url} alt={p.name} />
+                ) : (
+                  <div className="w-20 h-20 shrink-0 bg-surface-container-low flex items-center justify-center">
+                    <span className="msi text-[26px] text-on-surface-variant/50">{categoryMsi(p)}</span>
                   </div>
                 )}
-                <div className={building ? 'order-1 md:order-2 md:col-span-2' : ''}>
-                  {filteredPois.length === 0 && !building ? (
-                    <div className="empty-state">
-                      Ningún lugar coincide con el filtro.{' '}
-                      <button className="btn-link" onClick={clear}>
-                        Limpiar filtros
-                      </button>
+                <div className="p-3 flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold text-[14px] truncate">
+                      {p.accommodation_id && '🏨 '}
+                      {p.name}
                     </div>
-                  ) : (
-                    <TripMap
-                      pois={building ? pois : filteredPois}
-                      selectable={!!building}
-                      selectedIds={new Set(selected.map((p) => p.id))}
-                      selectedOrder={building ? selectedOrder : undefined}
-                      onToggleSelect={toggleSelect}
-                    />
-                  )}
+                    <div className="flex gap-1.5 shrink-0">
+                      <button className="btn btn-secondary btn-sm" onClick={() => setPoiModal({ poi: p })}>
+                        Editar
+                      </button>
+                      {!p.accommodation_id && (
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeletePoi(p)}>
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-[12px] text-on-surface-variant flex items-center gap-1 mt-0.5">
+                    <span className="msi text-[13px]">{categoryMsi(p)}</span>
+                    {p.category_name}
+                    {p.city && ` · ${p.city}`}
+                  </div>
                 </div>
               </div>
-
-              {!building && (
-                <div className="mt-6">
-                  <h2 className="text-[15px] font-semibold mb-2">Recorridos guardados</h2>
-                  <SavedRouteTemplates
-                    templates={routeTemplates}
-                    onEdit={startBuilding}
-                    onDelete={handleDeleteTemplate}
-                    onApply={setApplyTarget}
-                  />
+            ))}
+          </div>
+        )
+      ) : (
+        <>
+          <div className={building ? 'grid grid-cols-1 md:grid-cols-3 gap-4' : ''}>
+            {building && (
+              <div className="order-2 md:order-1">
+                <RouteBuilderPanel
+                  tripId={id}
+                  selected={selected}
+                  onChangeOrder={setSelected}
+                  onRemove={toggleSelect}
+                  editingTemplate={building.editingTemplate}
+                  onSaved={handleSavedRoute}
+                  onCancel={cancelBuilding}
+                />
+              </div>
+            )}
+            <div className={building ? 'order-1 md:order-2 md:col-span-2' : ''}>
+              {pois.length > 0 && filteredPois.length === 0 && !building ? (
+                <div className="empty-state">
+                  Ningún lugar coincide con el filtro.{' '}
+                  <button className="btn-link" onClick={clear}>
+                    Limpiar filtros
+                  </button>
                 </div>
+              ) : (
+                <TripMap
+                  pois={building ? pois : filteredPois}
+                  selectable={!!building}
+                  selectedIds={new Set(selected.map((p) => p.id))}
+                  selectedOrder={building ? selectedOrder : undefined}
+                  onToggleSelect={toggleSelect}
+                  onMapReady={setMapInstance}
+                />
               )}
-            </>
+            </div>
+          </div>
+
+          {!building && (
+            <div className="mt-6">
+              <h2 className="text-[15px] font-semibold mb-2">Recorridos guardados</h2>
+              <SavedRouteTemplates
+                templates={routeTemplates}
+                onEdit={startBuilding}
+                onDelete={handleDeleteTemplate}
+                onApply={setApplyTarget}
+              />
+            </div>
           )}
         </>
       )}
@@ -267,6 +291,15 @@ export default function MapaLugaresPage() {
 
       {applyTarget && (
         <ApplyRouteModal template={applyTarget} days={trip.days} onClose={() => setApplyTarget(null)} onApplied={reload} />
+      )}
+
+      {discoverBounds && (
+        <DiscoverRouteModal
+          tripId={id}
+          bounds={discoverBounds}
+          onClose={() => setDiscoverBounds(null)}
+          onConfirmed={handleDiscoveryConfirmed}
+        />
       )}
     </div>
   );

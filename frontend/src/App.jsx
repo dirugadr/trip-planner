@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import BrandMark from './components/BrandMark.jsx';
 import TripListPage from './pages/TripListPage.jsx';
 import TripDetailPage from './pages/TripDetailPage.jsx';
 import BudgetPage from './pages/BudgetPage.jsx';
@@ -35,7 +36,8 @@ export default function App() {
     <>
       <header className="app-header row-between">
         <Link to="/" className="brand">
-          ✈️ Trip Planner
+          <BrandMark />
+          Trip Planner
         </Link>
         <HeaderUser />
       </header>

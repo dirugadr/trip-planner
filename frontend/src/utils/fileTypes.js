@@ -19,9 +19,11 @@ export function checkFileClient(file) {
   return null;
 }
 
+/** Material Symbols icon name for a document's file type — used inside a
+ * `.msi` span, so this must be a real ligature name, not an emoji. */
 export function fileIcon(mime) {
-  if (mime === 'application/pdf') return '📄';
-  if (mime?.startsWith('image/')) return '🖼️';
-  if (mime?.includes('word') || mime === 'application/msword') return '📝';
-  return '📎';
+  if (mime === 'application/pdf') return 'picture_as_pdf';
+  if (mime?.startsWith('image/')) return 'image';
+  if (mime?.includes('word') || mime === 'application/msword') return 'description';
+  return 'attach_file';
 }

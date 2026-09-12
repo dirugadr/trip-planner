@@ -24,6 +24,7 @@ export class Poi {
       accommodation_id: data.accommodation_id ?? null,
       photo_url: data.photo_url ?? null,
       photo_source: data.photo_source ?? null,
+      photo_blob_url: null,
       created_at: now,
       updated_at: now,
       deleted_at: null,
@@ -95,11 +96,16 @@ export class Poi {
 
   /** Sets the POI's photo — kept separate from update()/FIELDS so it can
    * only be reached through the auto-lookup (photoLookup.js) or the manual
-   * upload endpoint, never through the general edit-POI payload. */
-  static async setPhoto(id, { url, source }) {
+   * upload endpoint, never through the general edit-POI payload.
+   * `url` is the CLIENT-FACING value (the real Wikipedia URL for an
+   * automatic photo, or our own /pois/:id/photo proxy path for a manual
+   * one) — `blobUrl` is only set for a manual photo, the real private Blob
+   * URL used server-side to stream it back (see api/pois.js's GET route). */
+  static async setPhoto(id, { url, source, blobUrl = null }) {
     const ok = await updateOne(TABLE, id, {
       photo_url: url,
       photo_source: source,
+      photo_blob_url: blobUrl,
       updated_at: new Date().toISOString(),
     });
     return ok ? Poi.findById(id) : null;

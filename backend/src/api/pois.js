@@ -1,6 +1,7 @@
 import express from 'express';
 import { serverError } from '../lib/http.js';
 import multer from 'multer';
+import { Readable } from 'stream';
 import Trip from '../models/Trip.js';
 import Poi from '../models/Poi.js';
 import PoiCategory from '../models/PoiCategory.js';
@@ -8,10 +9,13 @@ import ActivityPoi from '../models/ActivityPoi.js';
 import { sanitizeHttpUrl } from '../lib/url.js';
 import { lookupPhotoNear } from '../lib/photoLookup.js';
 import { blobConfigError } from '../config/index.js';
-import { uploadBlob } from '../lib/blob.js';
+import { uploadBlob, streamBlob } from '../lib/blob.js';
 import { checkImageFile, MAX_FILE_BYTES } from '../lib/fileTypes.js';
 
 const router = express.Router();
+// Routes that must NOT sit behind requireAuth — mounted separately, earlier,
+// in app.js. See the GET /pois/:id/photo handler below for why.
+export const publicPoisRouter = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_BYTES } });
 
@@ -178,10 +182,40 @@ router.post('/pois/:id/photo', guardBlob, uploadSingle, async (req, res) => {
     const fileError = checkImageFile(file.mimetype, file.buffer, file.size);
     if (fileError) return res.status(400).json({ success: false, error: fileError });
 
+    // The Blob store backing this project is private-only (confirmed live —
+    // `access: 'public'` on an upload is rejected by Vercel Blob when the
+    // store itself is private), so a manual photo can't be hotlinked from
+    // its raw blob URL. Store that URL server-side only (photo_blob_url) and
+    // expose our own streaming route below as the client-facing photo_url.
     const stored = await uploadBlob(`pois/${poi.id}/${file.originalname}`, file.buffer, file.mimetype);
-    const updated = await Poi.setPhoto(poi.id, { url: stored.url, source: 'manual' });
+    const updated = await Poi.setPhoto(poi.id, {
+      url: `/api/pois/${poi.id}/photo`,
+      source: 'manual',
+      blobUrl: stored.url,
+    });
 
     res.json({ success: true, data: updated });
+  } catch (error) {
+    serverError(res, error);
+  }
+});
+
+// GET /api/pois/:id/photo — streams a manually-uploaded photo from the
+// private Blob store. Deliberately NOT behind requireAuth (mounted before it
+// in app.js) — it's rendered as a plain <img src>, which can't carry an
+// Authorization header, and a tourist-attraction/restaurant photo is
+// low-sensitivity content (unlike Documents, which stay fully authenticated).
+publicPoisRouter.get('/pois/:id/photo', guardBlob, async (req, res) => {
+  try {
+    const poi = await Poi.findById(req.params.id);
+    if (!poi?.photo_blob_url) return res.status(404).json({ success: false, error: 'Photo not found' });
+
+    const result = await streamBlob(poi.photo_blob_url);
+    if (!result) return res.status(404).json({ success: false, error: 'Photo not found in storage' });
+
+    res.setHeader('Content-Type', /\.png$/i.test(poi.photo_blob_url) ? 'image/png' : 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    Readable.fromWeb(result.stream).pipe(res);
   } catch (error) {
     serverError(res, error);
   }

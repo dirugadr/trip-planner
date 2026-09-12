@@ -12,7 +12,7 @@ import budgetCategoriesRouter from './api/budgetCategories.js';
 import expensesRouter from './api/expenses.js';
 import paymentMethodsRouter from './api/paymentMethods.js';
 import accommodationsRouter from './api/accommodations.js';
-import poisRouter from './api/pois.js';
+import poisRouter, { publicPoisRouter } from './api/pois.js';
 import documentsRouter from './api/documents.js';
 import linksRouter from './api/links.js';
 import routeTemplatesRouter from './api/routeTemplates.js';
@@ -73,6 +73,10 @@ app.get('/api/health', (req, res) => {
 // ============================================
 // Public: login + session check
 app.use('/api/auth', authRouter);
+// Public: streams a POI's manually-uploaded photo — rendered as a plain
+// <img src> across the app, which can't carry an Authorization header; a
+// tourist-attraction/restaurant photo is low-sensitivity (unlike Documents).
+app.use('/api', publicPoisRouter);
 
 // Everything else under /api requires a valid session
 app.use('/api', requireAuth);

@@ -3,10 +3,14 @@ import config from '../config/index.js';
 
 const token = () => config.blob.token;
 
-/** Upload a buffer to the private Blob store. Returns the stored blob info. */
-export function uploadBlob(pathname, buffer, contentType) {
+/** Upload a buffer to the Blob store. Private by default (Documents: personal
+ * travel files, streamed back through our own auth gate — see streamBlob()).
+ * Pass `{ access: 'public' }` for content meant to be hotlinked directly
+ * (e.g. POI photos rendered as plain <img> tags across the app) — a private
+ * blob's URL 403s on a direct unauthenticated fetch, confirmed live. */
+export function uploadBlob(pathname, buffer, contentType, { access = 'private' } = {}) {
   return put(pathname, buffer, {
-    access: 'private',
+    access,
     token: token(),
     contentType,
     addRandomSuffix: true,

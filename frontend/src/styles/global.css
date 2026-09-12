@@ -286,31 +286,54 @@ h3 {
 
 /* Day / activity list */
 .day-card h3 {
-  font-size: 1rem;
+  font-size: 1.05rem;
+}
+.day-card .tag {
+  background: var(--accent-light);
+  border-color: var(--warning-border);
+  color: #8a5a1b;
 }
 .activity {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.6rem 0;
+  gap: 0.85rem;
+  padding: 0.75rem 0;
   border-top: 1px solid var(--border);
 }
 .activity:first-of-type {
   border-top: none;
+  padding-top: 0.5rem;
 }
 .activity-check {
-  margin-top: 0.2rem;
-  width: 1rem;
-  height: 1rem;
+  margin-top: 0.25rem;
+  width: 1.05rem;
+  height: 1.05rem;
   flex-shrink: 0;
   cursor: pointer;
+  accent-color: var(--primary);
 }
 .activity-time {
+  position: relative;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.82rem;
   color: var(--primary);
+  background: var(--primary-light);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
   min-width: 3.2rem;
+  text-align: center;
+}
+.activity:not(:last-of-type) .activity-time::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 1.35rem;
+  background: var(--border);
 }
 .activity-body {
   flex: 1;
@@ -318,22 +341,35 @@ h3 {
 .activity-title {
   font-weight: 600;
 }
+.activity-status {
+  display: inline-block;
+  margin-left: 0.4rem;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.activity-status-confirmed {
+  background: #e6f4ea;
+  color: #1e7a3d;
+}
+.activity-status-tentative {
+  background: var(--accent-light);
+  color: #8a5a1b;
+  font-style: italic;
+}
 .activity-done .activity-title {
   text-decoration: line-through;
 }
 .activity-done .activity-time {
   color: var(--text-muted);
+  background: var(--bg);
 }
 .activity-done {
   opacity: 0.6;
 }
-.activity-tentative .activity-time,
 .activity-tentative .activity-body {
-  font-style: italic;
-}
-.tentative-tag {
-  font-weight: 400;
-  color: var(--text-muted);
   font-style: italic;
 }
 .checkbox-field {
@@ -583,6 +619,9 @@ h3 {
 
 /* Context sub-bar: current day's accommodation city (HU-8.4) */
 .context-subbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -594,6 +633,7 @@ h3 {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--primary-hover);
+  box-shadow: 0 2px 6px rgba(29, 45, 89, 0.06);
 }
 .context-subbar-icon {
   flex-shrink: 0;
@@ -601,16 +641,35 @@ h3 {
 
 /* Smart route suggestion (HU-2.5) */
 .smart-route-list {
-  list-style: decimal;
+  list-style: none;
+  counter-reset: smart-route-stop;
   margin: 0.5rem 0 0;
-  padding-left: 1.4rem;
+  padding: 0;
 }
 .smart-route-list li {
-  padding: 0.6rem 0;
+  position: relative;
+  padding: 0.7rem 0 0.7rem 2.2rem;
   border-top: 1px solid var(--border);
 }
 .smart-route-list li:first-child {
   border-top: none;
+}
+.smart-route-list li::before {
+  counter-increment: smart-route-stop;
+  content: counter(smart-route-stop);
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .smart-route-head {
   font-size: 0.95rem;

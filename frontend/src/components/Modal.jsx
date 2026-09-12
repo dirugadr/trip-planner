@@ -1,28 +1,5 @@
 import { useEffect } from 'react';
 
-const overlay = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(20, 30, 50, 0.45)',
-  display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'center',
-  padding: '3rem 1rem',
-  zIndex: 50,
-  overflowY: 'auto',
-};
-
-const panel = {
-  background: 'var(--surface)',
-  borderRadius: 'var(--radius)',
-  boxShadow: '0 10px 40px rgba(20, 30, 50, 0.25)',
-  width: '100%',
-  maxWidth: '480px',
-  padding: '1.5rem',
-  maxHeight: 'calc(100vh - 6rem)',
-  overflowY: 'auto',
-};
-
 export default function Modal({ title, onClose, children }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -31,12 +8,18 @@ export default function Modal({ title, onClose, children }) {
   }, [onClose]);
 
   return (
-    <div style={overlay} onMouseDown={onClose}>
-      <div style={panel} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="row-between" style={{ marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{title}</h2>
-          <button className="btn-link" onClick={onClose} aria-label="Cerrar">
-            ✕
+    <div
+      className="fixed inset-0 bg-on-surface/45 flex items-start justify-center p-4 sm:p-12 z-50 overflow-y-auto"
+      onMouseDown={onClose}
+    >
+      <div
+        className="bg-surface rounded-2xl shadow-lg w-full max-w-[480px] p-6 max-h-[calc(100vh-6rem)] overflow-y-auto"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="row-between mb-4">
+          <h2 className="m-0 text-[17px] font-bold">{title}</h2>
+          <button className="btn-icon msi text-[18px] text-on-surface-variant" onClick={onClose} aria-label="Cerrar">
+            close
           </button>
         </div>
         {children}

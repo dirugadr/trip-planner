@@ -1,29 +1,34 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import BrandMark from './components/BrandMark.jsx';
+import { Routes, Route, Link, Navigate, useMatch } from 'react-router-dom';
 import TripListPage from './pages/TripListPage.jsx';
 import TripDetailPage from './pages/TripDetailPage.jsx';
 import BudgetPage from './pages/BudgetPage.jsx';
 import AccommodationsPage from './pages/AccommodationsPage.jsx';
-import PoisPage from './pages/PoisPage.jsx';
-import DocumentsPage from './pages/DocumentsPage.jsx';
-import LinksPage from './pages/LinksPage.jsx';
+import DocumentosLinksPage from './pages/DocumentosLinksPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Spinner from './components/Spinner.jsx';
+import TripTabs from './components/TripTabs.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 // Leaflet is heavy — keep it out of the main bundle.
-const MapPage = lazy(() => import('./pages/MapPage.jsx'));
+const MapaLugaresPage = lazy(() => import('./pages/MapaLugaresPage.jsx'));
 const DayRouteView = lazy(() => import('./pages/DayRouteView.jsx'));
 
 function HeaderUser() {
   const { status, user, logout } = useAuth();
   if (status !== 'authenticated') return null;
   return (
-    <div className="header-user">
-      {user?.picture && <img src={user.picture} alt="" className="avatar" referrerPolicy="no-referrer" />}
-      <span className="muted">{user?.name || user?.email}</span>
+    <div className="flex items-center gap-2.5">
+      {user?.picture && (
+        <img
+          src={user.picture}
+          alt=""
+          className="w-6 h-6 rounded-full border border-outline-variant/30"
+          referrerPolicy="no-referrer"
+        />
+      )}
+      <span className="muted hidden sm:inline">{user?.name || user?.email}</span>
       <button className="btn-link" onClick={logout}>
         Cerrar sesión
       </button>
@@ -31,17 +36,30 @@ function HeaderUser() {
   );
 }
 
+function HeaderNav() {
+  const match = useMatch('/trips/:id/*');
+  if (!match) return null;
+  return <TripTabs tripId={match.params.id} />;
+}
+
 export default function App() {
   return (
     <>
-      <header className="app-header row-between">
-        <Link to="/" className="brand">
-          <BrandMark />
-          Trip Planner
-        </Link>
-        <HeaderUser />
+      <header className="bg-surface/90 backdrop-blur border-b border-outline-variant/30 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <span className="msi text-secondary">travel_explore</span>
+              <span className="font-semibold text-[15px]">Trip Planner</span>
+            </Link>
+            <div className="overflow-x-auto">
+              <HeaderNav />
+            </div>
+          </div>
+          <HeaderUser />
+        </div>
       </header>
-      <main className="container">
+      <main>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -77,19 +95,11 @@ export default function App() {
             }
           />
           <Route
-            path="/trips/:id/lugares"
-            element={
-              <RequireAuth>
-                <PoisPage />
-              </RequireAuth>
-            }
-          />
-          <Route
             path="/trips/:id/mapa"
             element={
               <RequireAuth>
                 <Suspense fallback={<Spinner />}>
-                  <MapPage />
+                  <MapaLugaresPage />
                 </Suspense>
               </RequireAuth>
             }
@@ -98,15 +108,7 @@ export default function App() {
             path="/trips/:id/documentos"
             element={
               <RequireAuth>
-                <DocumentsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/trips/:id/links"
-            element={
-              <RequireAuth>
-                <LinksPage />
+                <DocumentosLinksPage />
               </RequireAuth>
             }
           />

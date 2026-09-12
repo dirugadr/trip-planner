@@ -61,9 +61,17 @@ export default function TripListPage() {
                   past ? 'opacity-70 hover:opacity-100' : ''
                 }`}
               >
-                <div className="w-24 h-24 shrink-0 bg-surface-container-low flex items-center justify-center">
-                  <span className="msi text-[28px] text-on-surface-variant/50">luggage</span>
-                </div>
+                {trip.cover_photo_url ? (
+                  <img
+                    className={`w-24 h-24 object-cover shrink-0 ${past ? 'grayscale' : ''}`}
+                    src={trip.cover_photo_url}
+                    alt=""
+                  />
+                ) : (
+                  <div className="w-24 h-24 shrink-0 bg-surface-container-low flex items-center justify-center">
+                    <span className="msi text-[28px] text-on-surface-variant/50">luggage</span>
+                  </div>
+                )}
                 <div className="p-3 flex-1 flex flex-col justify-center min-w-0">
                   <div className="font-semibold text-[15px] truncate">{trip.name}</div>
                   <div className="text-[12px] text-on-surface-variant mt-0.5">

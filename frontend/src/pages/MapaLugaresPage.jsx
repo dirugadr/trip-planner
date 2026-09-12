@@ -255,7 +255,13 @@ export default function MapaLugaresPage() {
 
       {poiModal && (
         <Modal title={poiModal.poi ? 'Editar lugar' : 'Nuevo lugar'} onClose={() => setPoiModal(null)}>
-          <PoiForm initial={poiModal.poi} categories={categories} onSubmit={handleSubmitPoi} onCancel={() => setPoiModal(null)} />
+          <PoiForm
+            initial={poiModal.poi}
+            categories={categories}
+            onSubmit={handleSubmitPoi}
+            onCancel={() => setPoiModal(null)}
+            onPhotoChanged={reload}
+          />
         </Modal>
       )}
 

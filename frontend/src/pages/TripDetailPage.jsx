@@ -306,12 +306,22 @@ export default function TripDetailPage() {
                     </div>
                     <div className="flex-1 pb-5 min-w-0">
                       <div
-                        className={`bg-surface rounded-xl p-4 shadow-sm border ${
+                        className={`bg-surface rounded-xl shadow-sm border overflow-hidden flex ${
                           conflicts.some((c) => c.a.id === activity.id || c.b.id === activity.id)
                             ? 'border-error/30'
                             : 'border-outline-variant/20'
                         } ${activity.completed ? 'opacity-60' : ''}`}
                       >
+                        {primaryPoi?.photo_url ? (
+                          <img className="w-28 h-28 object-cover shrink-0" src={primaryPoi.photo_url} alt="" />
+                        ) : (
+                          primaryPoi && (
+                            <div className="w-28 h-28 shrink-0 bg-surface-container-low flex items-center justify-center">
+                              <span className="msi text-[32px] text-on-surface-variant/50">{categoryMsi(primaryPoi)}</span>
+                            </div>
+                          )
+                        )}
+                        <div className="p-4 flex-1 min-w-0">
                         <div className="row-between items-start">
                           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                             <span className="text-[13px] font-semibold">
@@ -394,6 +404,7 @@ export default function TripDetailPage() {
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteActivity(activity)}>
                             Eliminar
                           </button>
+                        </div>
                         </div>
                       </div>
                       {walk && (

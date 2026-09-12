@@ -45,3 +45,24 @@ export function checkFile(mimetype, buffer, sizeBytes) {
   }
   return null;
 }
+
+const IMAGE_ALLOWED = {
+  'image/jpeg': ['jpeg'],
+  'image/png': ['png'],
+};
+
+/** Same idea as checkFile(), narrowed to JPG/PNG — used for POI photo uploads. */
+export function checkImageFile(mimetype, buffer, sizeBytes) {
+  if (sizeBytes > MAX_FILE_BYTES) {
+    return `La imagen supera el límite de 5 MB.`;
+  }
+  const families = IMAGE_ALLOWED[mimetype];
+  if (!families) {
+    return `Tipo de imagen no permitido. Solo se aceptan JPG o PNG.`;
+  }
+  const family = magicFamily(buffer);
+  if (!family || !families.includes(family)) {
+    return `El contenido del archivo no coincide con su tipo declarado.`;
+  }
+  return null;
+}

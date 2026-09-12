@@ -32,10 +32,19 @@ export class Trip {
     return findById(TABLE, id);
   }
 
-  // Soonest trip first (HU-1.2), stable tiebreak on creation order.
+  // Soonest trip first (HU-1.2), stable tiebreak on creation order. Each row
+  // also carries cover_photo_url — the trip's earliest-saved POI photo, if
+  // any (v2 UI's trip-list card) — via a correlated subquery rather than a
+  // second round trip per trip.
   static findAll() {
     return dbAll(
-      `SELECT * FROM ${TABLE} WHERE deleted_at IS NULL ORDER BY start_date ASC, created_at ASC`
+      `SELECT t.*,
+              (SELECT p.photo_url FROM pois_saved p
+                WHERE p.trip_id = t.id AND p.deleted_at IS NULL AND p.photo_url IS NOT NULL
+                ORDER BY p.created_at ASC LIMIT 1) AS cover_photo_url
+         FROM ${TABLE} t
+        WHERE t.deleted_at IS NULL
+        ORDER BY t.start_date ASC, t.created_at ASC`
     );
   }
 

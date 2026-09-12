@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext.jsx';
+import BrandMark from '../components/BrandMark.jsx';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID_TP;
 
@@ -29,7 +30,18 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <div className="card login-card">
-        <h1 style={{ marginBottom: '0.25rem' }}>✈️ Trip Planner</h1>
+        <h1
+          style={{
+            marginBottom: '0.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <BrandMark size={28} />
+          Trip Planner
+        </h1>
         <p className="muted" style={{ marginTop: 0 }}>
           Entrá con tu cuenta de Google habilitada.
         </p>

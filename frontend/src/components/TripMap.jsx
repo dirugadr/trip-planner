@@ -9,17 +9,18 @@ import { formatDuration } from '../utils/format.js';
 /** A teardrop pin coloured by category — a divIcon, so no external images. */
 function pinIcon(color) {
   const html = `
-    <svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">
+    <svg width="28" height="36" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg"
+         style="filter: drop-shadow(0 2px 3px rgba(20,30,50,0.35))">
       <path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.5 20 12 20.5.3.3.7.3 1 0 .5-.5 12-11.3 12-20.5C25 5.8 19.2 0 13 0z"
-            fill="${color}" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
+            fill="${color}" stroke="#fff" stroke-width="1.5"/>
       <circle cx="13" cy="13" r="5" fill="#fff"/>
     </svg>`;
   return L.divIcon({
     html,
     className: 'poi-pin',
-    iconSize: [26, 34],
-    iconAnchor: [13, 34],
-    popupAnchor: [0, -30],
+    iconSize: [28, 36],
+    iconAnchor: [14, 36],
+    popupAnchor: [0, -32],
   });
 }
 

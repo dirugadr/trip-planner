@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAsync } from '../hooks/useAsync.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
@@ -36,6 +36,42 @@ export default function TripDetailPage() {
   const [actionError, setActionError] = useState(null);
   const [busyActivityId, setBusyActivityId] = useState(null);
   const [confirmNode, confirm] = useConfirm();
+  const [visibleDayCity, setVisibleDayCity] = useState(null);
+  const dayRefs = useRef(new Map());
+
+  // Context sub-bar (visual only): tracks which day card is closest to the
+  // top of the viewport and shows its accommodation city — data already
+  // computed server-side (HU-8.4), just surfaced here as the day scrolls
+  // into view.
+  useEffect(() => {
+    if (!trip?.days?.length) return undefined;
+    const REFERENCE_LINE = 140; // px from the top of the viewport
+
+    const updateVisibleDay = () => {
+      const positions = [];
+      dayRefs.current.forEach((el, dayId) => {
+        positions.push({ dayId, top: el.getBoundingClientRect().top });
+      });
+      if (positions.length === 0) return;
+      // The day-card that has scrolled past the reference line most recently
+      // is "current"; before the first one reaches it, default to the first day.
+      const passed = positions.filter((p) => p.top <= REFERENCE_LINE);
+      const current =
+        passed.length > 0
+          ? passed.reduce((a, b) => (b.top > a.top ? b : a))
+          : positions.reduce((a, b) => (b.top < a.top ? b : a));
+      const day = trip.days.find((d) => d.id === current.dayId);
+      setVisibleDayCity(day?.cities?.[0] || null);
+    };
+
+    updateVisibleDay();
+    window.addEventListener('scroll', updateVisibleDay, { passive: true });
+    window.addEventListener('resize', updateVisibleDay);
+    return () => {
+      window.removeEventListener('scroll', updateVisibleDay);
+      window.removeEventListener('resize', updateVisibleDay);
+    };
+  }, [trip]);
 
   const run = async (fn) => {
     setActionError(null);
@@ -161,8 +197,22 @@ export default function TripDetailPage() {
       </div>
 
       <h2 style={{ margin: '1.5rem 0 0.75rem' }}>Itinerario</h2>
+      {visibleDayCity && (
+        <div className="context-subbar">
+          <span className="context-subbar-icon">📍</span>
+          {visibleDayCity}
+        </div>
+      )}
       {trip.days.map((day) => (
-        <div className="card day-card" key={day.id}>
+        <div
+          className="card day-card"
+          key={day.id}
+          data-day-id={day.id}
+          ref={(el) => {
+            if (el) dayRefs.current.set(day.id, el);
+            else dayRefs.current.delete(day.id);
+          }}
+        >
           <div className="row-between">
             <h3>
               {formatDayHeading(day.date)}
@@ -180,7 +230,7 @@ export default function TripDetailPage() {
               </button>
               {day.activities.filter((a) => a.pois?.length > 0).length >= 2 && (
                 <>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setSmartRouteDay(day)}>
+                  <button className="btn btn-ai btn-sm" onClick={() => setSmartRouteDay(day)}>
                     ✨ Sugerir recorrido
                   </button>
                   <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/days/${day.id}/route`}>
@@ -235,9 +285,13 @@ export default function TripDetailPage() {
                     <div className="activity-title">
                       {activity.accommodation_id && '🏨 '}
                       {activity.title}
-                      {activity.tentative ? (
-                        <span className="tentative-tag"> · tentativa</span>
-                      ) : null}
+                      <span
+                        className={`activity-status ${
+                          activity.tentative ? 'activity-status-tentative' : 'activity-status-confirmed'
+                        }`}
+                      >
+                        {activity.tentative ? 'Tentativa' : 'Confirmada'}
+                      </span>
                     </div>
                     {activity.accommodation_id && (
                       <div className="muted">Generada por el alojamiento</div>

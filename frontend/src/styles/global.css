@@ -209,7 +209,7 @@
 @layer utilities {
   .msi {
     font-family: 'Material Symbols Outlined';
-    font-weight: 400;
+    font-weight: normal;
     font-style: normal;
     font-size: 20px;
     line-height: 1;
@@ -220,6 +220,9 @@
     word-wrap: normal;
     direction: ltr;
     vertical-align: middle;
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
   }
 }
 

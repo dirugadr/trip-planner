@@ -27,8 +27,8 @@ export function haversineMinutes(a, b) {
 }
 
 /**
- * OSRM road-network distance matrix → walking minutes. One request.
- * @returns {Promise<number[][]|null>} minutes[i][j], or null on failure.
+ * OSRM road-network distance matrix → walking minutes + metres. One request.
+ * @returns {Promise<{minutes:number, meters:number}[][]|null>} cell[i][j], or null on failure.
  */
 async function osrmMatrix(points, { signal } = {}) {
   const coords = points.map((p) => `${p.lng},${p.lat}`).join(';');
@@ -41,7 +41,9 @@ async function osrmMatrix(points, { signal } = {}) {
     const data = await res.json();
     if (data.code !== 'Ok' || !Array.isArray(data.distances)) return null;
     return data.distances.map((row) =>
-      row.map((m) => (m == null ? null : Math.max(1, Math.round(m / WALK_METERS_PER_MIN))))
+      row.map((m) =>
+        m == null ? null : { minutes: Math.max(1, Math.round(m / WALK_METERS_PER_MIN)), meters: m }
+      )
     );
   } catch {
     return null;
@@ -53,7 +55,7 @@ async function osrmMatrix(points, { signal } = {}) {
  * Uses the cache first, one OSRM call for the rest, haversine as fallback.
  *
  * @param {{id:string, lat:number, lng:number}[]} pois
- * @returns {Promise<{from:string,to:string,minutes:number,source:'osrm'|'haversine_estimate'}[]>}
+ * @returns {Promise<{from:string,to:string,minutes:number,distance_meters:number,source:'osrm'|'haversine_estimate'}[]>}
  */
 export async function walkTimeMatrix(pois) {
   const pairs = [];
@@ -74,18 +76,30 @@ export async function walkTimeMatrix(pois) {
   const toPersist = [];
 
   const result = pairs.map(({ from, to }) => {
-    const hit = cached.get(`${from}|${to}`);
-    if (hit) return { from, to, minutes: hit.minutes, source: hit.source };
-
-    const osrmMin = osrm ? osrm[idx.get(from)]?.[idx.get(to)] : null;
-    if (osrmMin != null) {
-      toPersist.push({ from, to, minutes: osrmMin, source: 'osrm' });
-      return { from, to, minutes: osrmMin, source: 'osrm' };
-    }
-
     const a = pois[idx.get(from)];
     const b = pois[idx.get(to)];
-    return { from, to, minutes: haversineMinutes(a, b), source: 'haversine_estimate' };
+
+    const hit = cached.get(`${from}|${to}`);
+    if (hit) {
+      // Older cache rows (before this column existed) have no distance yet —
+      // estimate it on the fly rather than leaving the total incomplete.
+      const distance_meters = hit.distanceMeters ?? haversineMeters(a, b);
+      return { from, to, minutes: hit.minutes, distance_meters, source: hit.source };
+    }
+
+    const osrmCell = osrm ? osrm[idx.get(from)]?.[idx.get(to)] : null;
+    if (osrmCell != null) {
+      toPersist.push({ from, to, minutes: osrmCell.minutes, distanceMeters: osrmCell.meters, source: 'osrm' });
+      return { from, to, minutes: osrmCell.minutes, distance_meters: osrmCell.meters, source: 'osrm' };
+    }
+
+    return {
+      from,
+      to,
+      minutes: haversineMinutes(a, b),
+      distance_meters: haversineMeters(a, b),
+      source: 'haversine_estimate',
+    };
   });
 
   if (toPersist.length > 0) {

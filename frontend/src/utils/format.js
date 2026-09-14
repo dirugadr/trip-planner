@@ -61,6 +61,12 @@ export function formatDuration(minutes) {
   return `${m} min`;
 }
 
+export function formatDistance(meters) {
+  if (!meters) return '';
+  if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
+  return `${Math.round(meters)} m`;
+}
+
 export function formatBytes(bytes) {
   if (bytes == null) return '';
   if (bytes < 1024) return `${bytes} B`;

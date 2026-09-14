@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Link, Navigate, useMatch } from 'react-router-dom';
 import TripListPage from './pages/TripListPage.jsx';
-import TripDetailPage from './pages/TripDetailPage.jsx';
 import BudgetPage from './pages/BudgetPage.jsx';
 import AccommodationsPage from './pages/AccommodationsPage.jsx';
 import DocumentosLinksPage from './pages/DocumentosLinksPage.jsx';
@@ -11,9 +10,10 @@ import Spinner from './components/Spinner.jsx';
 import TripTabs from './components/TripTabs.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
-// Leaflet is heavy — keep it out of the main bundle.
+// Leaflet is heavy — keep it out of the main bundle. TripDetailPage now
+// embeds a map too (split view, HU-11.1-embebido), so it's lazy as well.
+const TripDetailPage = lazy(() => import('./pages/TripDetailPage.jsx'));
 const MapaLugaresPage = lazy(() => import('./pages/MapaLugaresPage.jsx'));
-const DayRouteView = lazy(() => import('./pages/DayRouteView.jsx'));
 
 function HeaderUser() {
   const { status, user, logout } = useAuth();
@@ -74,7 +74,9 @@ export default function App() {
             path="/trips/:id"
             element={
               <RequireAuth>
-                <TripDetailPage />
+                <Suspense fallback={<Spinner />}>
+                  <TripDetailPage />
+                </Suspense>
               </RequireAuth>
             }
           />
@@ -109,16 +111,6 @@ export default function App() {
             element={
               <RequireAuth>
                 <DocumentosLinksPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/trips/:id/days/:dayId/route"
-            element={
-              <RequireAuth>
-                <Suspense fallback={<Spinner />}>
-                  <DayRouteView />
-                </Suspense>
               </RequireAuth>
             }
           />

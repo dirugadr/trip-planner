@@ -4,6 +4,7 @@ import { useAsync } from '../hooks/useAsync.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { getTrip, updateTrip, deleteTrip } from '../services/trips.js';
 import { updateDay, getDayRouteView } from '../services/days.js';
+import { listPois } from '../services/pois.js';
 import { createActivity, updateActivity, deleteActivity, moveActivity } from '../services/activities.js';
 import {
   formatDayHeading,
@@ -26,6 +27,8 @@ import DayForm from '../components/DayForm.jsx';
 import ActivityForm from '../components/ActivityForm.jsx';
 import ActivityPoisModal from '../components/ActivityPoisModal.jsx';
 import SmartRouteModal from '../components/SmartRouteModal.jsx';
+import DayRouteMap from '../components/DayRouteMap.jsx';
+import TripMap from '../components/TripMap.jsx';
 
 const ROUTE_MIN_STOPS = 2;
 
@@ -33,10 +36,42 @@ function hasRoute(day) {
   return day.activities.filter((a) => a.pois?.length > 0).length >= ROUTE_MIN_STOPS;
 }
 
+/** Right-hand map panel for the active day: the real walked route (HU-11.1)
+ * once the day has enough stops with a POI, a loading placeholder while
+ * that's being fetched, or — so the panel is never empty — every saved POI
+ * of the trip (no route line, same as the general "Mapa & Lugares" view). */
+function DayMapPanel({ day, routeView, pois }) {
+  if (day && hasRoute(day)) {
+    if (routeView === 'loading') {
+      return (
+        <div className="h-[70vh] min-h-[360px] rounded-2xl border border-outline-variant/20 bg-surface-container-low flex items-center justify-center">
+          <Spinner />
+        </div>
+      );
+    }
+    if (routeView && routeView.stops?.length > 0) {
+      return (
+        <>
+          {routeView.activities_without_poi_count > 0 && (
+            <div className="alert alert-warning">
+              {routeView.activities_without_poi_count === 1
+                ? '1 actividad no tiene lugar asociado y no aparece en el mapa.'
+                : `${routeView.activities_without_poi_count} actividades no tienen lugar asociado y no aparecen en el mapa.`}
+            </div>
+          )}
+          <DayRouteMap stops={routeView.stops} segments={routeView.segments} />
+        </>
+      );
+    }
+  }
+  return <TripMap pois={pois} />;
+}
+
 export default function TripDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: trip, loading, error, reload } = useAsync(() => getTrip(id), [id]);
+  const { data: pois } = useAsync(() => listPois(id), [id]);
 
   const [activeDayId, setActiveDayId] = useState(null);
   const [routeViews, setRouteViews] = useState({}); // dayId -> { stops, segments } | 'loading'
@@ -225,222 +260,223 @@ export default function TripDetailPage() {
       </div>
 
       {activeDay && (
-        <div className="max-w-4xl">
-          <div className="row-between mb-4">
-            <div>
-              <div className="text-[11px] font-semibold text-secondary uppercase tracking-wide">
-                Día {activeDay.day_number} · {formatDayHeading(activeDay.date)}
-              </div>
-              <h2 className="text-[22px] font-bold">{activeDay.title || 'Sin título'}</h2>
-              {activeDay.cities?.length > 0 && (
-                <div className="muted flex items-center gap-1 mt-0.5">
-                  <span className="msi text-[14px]">location_on</span>
-                  {activeDay.cities.join(' → ')}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div>
+            <div className="row-between mb-4">
+              <div>
+                <div className="text-[11px] font-semibold text-secondary uppercase tracking-wide">
+                  Día {activeDay.day_number} · {formatDayHeading(activeDay.date)}
                 </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <button className="btn btn-secondary btn-sm" onClick={() => setDayModal(activeDay)}>
-                <span className="msi text-[16px]">edit</span>Editar día
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => setActivityModal({ dayId: activeDay.id })}>
-                <span className="msi text-[16px]">add</span>Nueva actividad
-              </button>
-              {hasRoute(activeDay) && (
-                <>
-                  <Link className="btn btn-secondary btn-sm" to={`/trips/${id}/days/${activeDay.id}/route`}>
-                    <span className="msi text-[16px]">map</span>Ver recorrido en mapa
-                  </Link>
+                <h2 className="text-[22px] font-bold">{activeDay.title || 'Sin título'}</h2>
+                {activeDay.cities?.length > 0 && (
+                  <div className="muted flex items-center gap-1 mt-0.5">
+                    <span className="msi text-[14px]">location_on</span>
+                    {activeDay.cities.join(' → ')}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <button className="btn btn-secondary btn-sm" onClick={() => setDayModal(activeDay)}>
+                  <span className="msi text-[16px]">edit</span>Editar día
+                </button>
+                <button className="btn btn-secondary btn-sm" onClick={() => setActivityModal({ dayId: activeDay.id })}>
+                  <span className="msi text-[16px]">add</span>Nueva actividad
+                </button>
+                {hasRoute(activeDay) && (
                   <button className="btn btn-ai btn-sm" onClick={() => setSmartRouteDay(activeDay)}>
                     <span className="msi text-[16px]">auto_awesome</span>Sugerir recorrido
                   </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {conflicts.length > 0 && (
-            <div className="bg-error-container rounded-xl p-4 mb-5 flex items-start gap-3">
-              <span className="msi text-error mt-0.5">warning</span>
-              <div className="flex-1">
-                <div className="font-semibold text-[14px]">Conflicto de horario detectado</div>
-                <div className="text-[13px] text-on-surface-variant mt-0.5">
-                  «{conflicts[0].a.title}» se superpone con «{conflicts[0].b.title}»
-                  {conflicts.length > 1 && ` (+${conflicts.length - 1} más)`}.
-                </div>
+                )}
               </div>
-              <button
-                className="px-3 py-1.5 rounded-full bg-surface text-[13px] font-medium shrink-0"
-                onClick={() => {
-                  const a = activeDay.activities.find((x) => x.id === conflicts[0].a.id);
-                  if (a) setActivityModal({ dayId: activeDay.id, activity: a });
-                }}
-              >
-                Ajustar manual
-              </button>
             </div>
-          )}
-
-          {activeDay.activities.length === 0 ? (
-            <div className="empty-state">Este día no tiene actividades todavía.</div>
-          ) : (
-            <div>
-              {activeDay.activities.map((activity, idx) => {
-                const primaryPoi = activity.pois?.[0];
-                const walk = walkAfter.get(activity.id);
-                const isLast = idx === activeDay.activities.length - 1;
-                return (
-                  <div className="flex gap-4" key={activity.id}>
-                    <div className="flex flex-col items-center">
-                      <button
-                        className={`w-7 h-7 rounded-full text-[12px] font-bold flex items-center justify-center shrink-0 ${
-                          activity.completed ? 'bg-surface-container-low text-on-surface-variant' : 'bg-primary text-on-primary'
-                        }`}
-                        onClick={() => handleToggleComplete(activity)}
-                        disabled={busyActivityId === activity.id}
-                        title={activity.completed ? 'Marcar como pendiente' : 'Marcar como hecha'}
-                      >
-                        {activity.completed ? <span className="msi text-[14px]">check</span> : idx + 1}
-                      </button>
-                      {!isLast && <div className="w-px flex-1 bg-outline-variant/50 my-1" />}
-                    </div>
-                    <div className="flex-1 pb-5 min-w-0">
-                      <div
-                        className={`bg-surface rounded-xl shadow-sm border overflow-hidden flex ${
-                          conflicts.some((c) => c.a.id === activity.id || c.b.id === activity.id)
-                            ? 'border-error/30'
-                            : 'border-outline-variant/20'
-                        } ${activity.completed ? 'opacity-60' : ''}`}
-                      >
-                        {primaryPoi?.photo_url ? (
-                          <img className="w-28 h-28 object-cover shrink-0" src={primaryPoi.photo_url} alt="" />
-                        ) : (
-                          primaryPoi && (
-                            <div className="w-28 h-28 shrink-0 bg-surface-container-low flex items-center justify-center">
-                              <span className="msi text-[32px] text-on-surface-variant/50">{categoryMsi(primaryPoi)}</span>
+  
+            {conflicts.length > 0 && (
+              <div className="bg-error-container rounded-xl p-4 mb-5 flex items-start gap-3">
+                <span className="msi text-error mt-0.5">warning</span>
+                <div className="flex-1">
+                  <div className="font-semibold text-[14px]">Conflicto de horario detectado</div>
+                  <div className="text-[13px] text-on-surface-variant mt-0.5">
+                    «{conflicts[0].a.title}» se superpone con «{conflicts[0].b.title}»
+                    {conflicts.length > 1 && ` (+${conflicts.length - 1} más)`}.
+                  </div>
+                </div>
+                <button
+                  className="px-3 py-1.5 rounded-full bg-surface text-[13px] font-medium shrink-0"
+                  onClick={() => {
+                    const a = activeDay.activities.find((x) => x.id === conflicts[0].a.id);
+                    if (a) setActivityModal({ dayId: activeDay.id, activity: a });
+                  }}
+                >
+                  Ajustar manual
+                </button>
+              </div>
+            )}
+  
+            {activeDay.activities.length === 0 ? (
+              <div className="empty-state">Este día no tiene actividades todavía.</div>
+            ) : (
+              <div>
+                {activeDay.activities.map((activity, idx) => {
+                  const primaryPoi = activity.pois?.[0];
+                  const walk = walkAfter.get(activity.id);
+                  const isLast = idx === activeDay.activities.length - 1;
+                  return (
+                    <div className="flex gap-4" key={activity.id}>
+                      <div className="flex flex-col items-center">
+                        <button
+                          className={`w-7 h-7 rounded-full text-[12px] font-bold flex items-center justify-center shrink-0 ${
+                            activity.completed ? 'bg-surface-container-low text-on-surface-variant' : 'bg-primary text-on-primary'
+                          }`}
+                          onClick={() => handleToggleComplete(activity)}
+                          disabled={busyActivityId === activity.id}
+                          title={activity.completed ? 'Marcar como pendiente' : 'Marcar como hecha'}
+                        >
+                          {activity.completed ? <span className="msi text-[14px]">check</span> : idx + 1}
+                        </button>
+                        {!isLast && <div className="w-px flex-1 bg-outline-variant/50 my-1" />}
+                      </div>
+                      <div className="flex-1 pb-5 min-w-0">
+                        <div
+                          className={`bg-surface rounded-xl shadow-sm border overflow-hidden flex ${
+                            conflicts.some((c) => c.a.id === activity.id || c.b.id === activity.id)
+                              ? 'border-error/30'
+                              : 'border-outline-variant/20'
+                          } ${activity.completed ? 'opacity-60' : ''}`}
+                        >
+                          {primaryPoi?.photo_url ? (
+                            <img className="w-28 h-28 object-cover shrink-0" src={primaryPoi.photo_url} alt="" />
+                          ) : (
+                            primaryPoi && (
+                              <div className="w-28 h-28 shrink-0 bg-surface-container-low flex items-center justify-center">
+                                <span className="msi text-[32px] text-on-surface-variant/50">{categoryMsi(primaryPoi)}</span>
+                              </div>
+                            )
+                          )}
+                          <div className="p-4 flex-1 min-w-0">
+                          <div className="row-between items-start">
+                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                              <span className="text-[13px] font-semibold">
+                                {activity.start_time || '—'}
+                                {formatEndTime(activity.start_time, activity.duration_minutes) &&
+                                  ` – ${formatEndTime(activity.start_time, activity.duration_minutes)}`}
+                              </span>
+                              {primaryPoi && (
+                                <span className="tag-category">
+                                  <span className="msi text-[12px]">{categoryMsi(primaryPoi)}</span>
+                                  {primaryPoi.category_name}
+                                </span>
+                              )}
+                              <span className="tag">{activity.tentative ? 'Tentativa' : 'Confirmada'}</span>
                             </div>
-                          )
-                        )}
-                        <div className="p-4 flex-1 min-w-0">
-                        <div className="row-between items-start">
-                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                            <span className="text-[13px] font-semibold">
-                              {activity.start_time || '—'}
-                              {formatEndTime(activity.start_time, activity.duration_minutes) &&
-                                ` – ${formatEndTime(activity.start_time, activity.duration_minutes)}`}
-                            </span>
-                            {primaryPoi && (
-                              <span className="tag-category">
-                                <span className="msi text-[12px]">{categoryMsi(primaryPoi)}</span>
-                                {primaryPoi.category_name}
+                            {activity.expense && (
+                              <span className="text-[13px] font-semibold shrink-0">
+                                {formatMoney(activity.expense.amount, activity.expense.currency_code)}{' '}
+                                <span className={`text-[11px] font-normal ${activity.expense.is_paid ? 'text-on-surface-variant' : 'text-tertiary'}`}>
+                                  · {activity.expense.is_paid ? 'Pagado' : 'Pendiente'}
+                                </span>
                               </span>
                             )}
-                            <span className="tag">{activity.tentative ? 'Tentativa' : 'Confirmada'}</span>
                           </div>
-                          {activity.expense && (
-                            <span className="text-[13px] font-semibold shrink-0">
-                              {formatMoney(activity.expense.amount, activity.expense.currency_code)}{' '}
-                              <span className={`text-[11px] font-normal ${activity.expense.is_paid ? 'text-on-surface-variant' : 'text-tertiary'}`}>
-                                · {activity.expense.is_paid ? 'Pagado' : 'Pendiente'}
-                              </span>
-                            </span>
+                          <div className={`font-semibold text-[15px] ${activity.completed ? 'line-through' : ''}`}>
+                            {activity.accommodation_id && '🏨 '}
+                            {activity.title}
+                          </div>
+                          {activity.accommodation_id && <div className="muted">Generada por el alojamiento</div>}
+                          {activity.description && <div className="muted mt-0.5">{activity.description}</div>}
+                          {primaryPoi && (
+                            <div className="text-[13px] text-on-surface-variant flex items-center gap-1 mt-1">
+                              <span className="msi text-[14px]">location_on</span>
+                              {primaryPoi.address || primaryPoi.name}
+                            </div>
                           )}
+                          {safeUrl(activity.url) && (
+                            <a
+                              className="block text-[12px] text-secondary font-medium mt-1"
+                              href={safeUrl(activity.url)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Ver enlace
+                            </a>
+                          )}
+                          {activity.documents?.length > 0 && (
+                            <div className="flex items-center gap-1.5 mt-2 text-[12px] text-secondary font-medium">
+                              <span className="msi text-[14px]">{fileIcon(activity.documents[0].file_type)}</span>
+                              {activity.documents[0].title}
+                              {activity.documents.length > 1 && ` (+${activity.documents.length - 1})`}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap mt-3">
+                            <button className="btn btn-secondary btn-sm" onClick={() => setPoisModal(activity)}>
+                              Lugares{activity.pois?.length ? ` (${activity.pois.length})` : ''}
+                            </button>
+                            <button
+                              className="btn-icon msi text-[16px] text-on-surface-variant"
+                              disabled={idx === 0 || busyActivityId === activity.id}
+                              onClick={() => handleMove(activity, 'up')}
+                              aria-label="Subir"
+                            >
+                              arrow_upward
+                            </button>
+                            <button
+                              className="btn-icon msi text-[16px] text-on-surface-variant"
+                              disabled={isLast || busyActivityId === activity.id}
+                              onClick={() => handleMove(activity, 'down')}
+                              aria-label="Bajar"
+                            >
+                              arrow_downward
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setActivityModal({ dayId: activeDay.id, activity })}
+                            >
+                              Editar
+                            </button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteActivity(activity)}>
+                              Eliminar
+                            </button>
+                          </div>
+                          </div>
                         </div>
-                        <div className={`font-semibold text-[15px] ${activity.completed ? 'line-through' : ''}`}>
-                          {activity.accommodation_id && '🏨 '}
-                          {activity.title}
-                        </div>
-                        {activity.accommodation_id && <div className="muted">Generada por el alojamiento</div>}
-                        {activity.description && <div className="muted mt-0.5">{activity.description}</div>}
-                        {primaryPoi && (
-                          <div className="text-[13px] text-on-surface-variant flex items-center gap-1 mt-1">
-                            <span className="msi text-[14px]">location_on</span>
-                            {primaryPoi.address || primaryPoi.name}
+                        {walk && (
+                          <div className="flex items-center gap-1.5 text-[12px] text-on-surface-variant mt-2 ml-1">
+                            <span className="msi text-[14px]">directions_walk</span>
+                            {walk.minutes} min a pie hacia {walk.toTitle}
                           </div>
                         )}
-                        {safeUrl(activity.url) && (
-                          <a
-                            className="block text-[12px] text-secondary font-medium mt-1"
-                            href={safeUrl(activity.url)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Ver enlace
-                          </a>
-                        )}
-                        {activity.documents?.length > 0 && (
-                          <div className="flex items-center gap-1.5 mt-2 text-[12px] text-secondary font-medium">
-                            <span className="msi text-[14px]">{fileIcon(activity.documents[0].file_type)}</span>
-                            {activity.documents[0].title}
-                            {activity.documents.length > 1 && ` (+${activity.documents.length - 1})`}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1.5 flex-wrap mt-3">
-                          <button className="btn btn-secondary btn-sm" onClick={() => setPoisModal(activity)}>
-                            Lugares{activity.pois?.length ? ` (${activity.pois.length})` : ''}
-                          </button>
-                          <button
-                            className="btn-icon msi text-[16px] text-on-surface-variant"
-                            disabled={idx === 0 || busyActivityId === activity.id}
-                            onClick={() => handleMove(activity, 'up')}
-                            aria-label="Subir"
-                          >
-                            arrow_upward
-                          </button>
-                          <button
-                            className="btn-icon msi text-[16px] text-on-surface-variant"
-                            disabled={isLast || busyActivityId === activity.id}
-                            onClick={() => handleMove(activity, 'down')}
-                            aria-label="Bajar"
-                          >
-                            arrow_downward
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => setActivityModal({ dayId: activeDay.id, activity })}
-                          >
-                            Editar
-                          </button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteActivity(activity)}>
-                            Eliminar
-                          </button>
-                        </div>
-                        </div>
                       </div>
-                      {walk && (
-                        <div className="flex items-center gap-1.5 text-[12px] text-on-surface-variant mt-2 ml-1">
-                          <span className="msi text-[14px]">directions_walk</span>
-                          {walk.minutes} min a pie hacia {walk.toTitle}
-                        </div>
-                      )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
 
-          {dayTotals && (
-            <div className="grid grid-cols-3 gap-3 mt-2">
-              <div className="bg-surface-container-low rounded-xl p-3 text-center">
-                <div className="text-[11px] text-on-surface-variant">Caminata total</div>
-                <div className="text-[15px] font-bold">{dayTotals.km != null ? `${dayTotals.km.toFixed(1)} km` : '—'}</div>
-              </div>
-              <div className="bg-surface-container-low rounded-xl p-3 text-center">
-                <div className="text-[11px] text-on-surface-variant">Tiempo en tránsito</div>
-                <div className="text-[15px] font-bold">
-                  {dayTotals.transitMin != null ? formatDuration(dayTotals.transitMin) : '—'}
+            {dayTotals && (
+              <div className="grid grid-cols-3 gap-3 mt-2">
+                <div className="bg-surface-container-low rounded-xl p-3 text-center">
+                  <div className="text-[11px] text-on-surface-variant">Caminata total</div>
+                  <div className="text-[15px] font-bold">{dayTotals.km != null ? `${dayTotals.km.toFixed(1)} km` : '—'}</div>
+                </div>
+                <div className="bg-surface-container-low rounded-xl p-3 text-center">
+                  <div className="text-[11px] text-on-surface-variant">Tiempo en tránsito</div>
+                  <div className="text-[15px] font-bold">
+                    {dayTotals.transitMin != null ? formatDuration(dayTotals.transitMin) : '—'}
+                  </div>
+                </div>
+                <div className="bg-surface-container-low rounded-xl p-3 text-center">
+                  <div className="text-[11px] text-on-surface-variant">Gastado hoy</div>
+                  <div className="text-[15px] font-bold">
+                    {dayTotals.spent > 0 ? formatMoney(dayTotals.spent, dayTotals.currency) : '—'}
+                    {dayTotals.hasPending && <span className="text-tertiary text-[11px] font-medium"> · Pendiente</span>}
+                  </div>
                 </div>
               </div>
-              <div className="bg-surface-container-low rounded-xl p-3 text-center">
-                <div className="text-[11px] text-on-surface-variant">Gastado hoy</div>
-                <div className="text-[15px] font-bold">
-                  {dayTotals.spent > 0 ? formatMoney(dayTotals.spent, dayTotals.currency) : '—'}
-                  {dayTotals.hasPending && <span className="text-tertiary text-[11px] font-medium"> · Pendiente</span>}
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          <div className="lg:sticky lg:top-20">
+            <DayMapPanel day={activeDay} routeView={activeRouteView} pois={pois || []} />
+          </div>
         </div>
       )}
 

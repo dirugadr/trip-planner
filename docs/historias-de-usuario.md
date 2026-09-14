@@ -670,14 +670,34 @@ Detalle completo, protecciones y riesgos aceptados en
 ### HU-11.1 — Ver recorrido del día en el mapa ✅
 **Como** viajero, **quiero** ver en un mapa el recorrido a pie del día, en el orden de mis actividades, **para** visualizar el camino antes de salir.
 
-- Un botón "🗺️ Ver recorrido en el mapa" aparece junto a cada día en el
-  itinerario, **solo si** el día tiene al menos 2 actividades con POI
+> **Ajuste — embebido como split-view en Itinerario, en vez de pantalla
+> aparte ✅** (posterior a la versión original de esta historia): la
+> pantalla de solo lectura separada (`/trips/:tripId/days/:dayId/route`,
+> `DayRouteView.jsx`) se eliminó junto con el botón "🗺️ Ver recorrido en el
+> mapa" que la abría. La vista de un día en Itinerario (`TripDetailPage.jsx`)
+> es ahora un split 50/50 — columna izquierda: la lista de actividades tal
+> como estaba; columna derecha: un mapa **siempre visible** (`sticky`
+> mientras se hace scroll de la lista) que se actualiza solo, sin navegar a
+> otra pantalla ni recargar nada, al cambiar de día. El endpoint `GET
+> /api/days/:dayId/route-view` no cambió — se sigue reutilizando tal cual
+> (mismo fetch perezoso y cacheado por día que ya alimentaba el resumen de
+> caminata/tránsito de "Frontend v2", ahora también alimenta el mapa).
+> Verificado en vivo con un viaje de 3 días (recorrido real con 2 paradas +
+> trazado OSRM en un día, fallback en los otros, cambio de día sin recarga)
+> y en mobile (layout a una sola columna, lista arriba y mapa abajo).
+
+El resto de esta historia sigue vigente sin cambios, solo que el mapa ahora
+vive en el panel derecho de Itinerario:
+
+- El mapa aparece **solo si** el día tiene al menos 2 actividades con POI
   asociado (mismo umbral y misma condición que "✨ Sugerir recorrido",
-  HU-2.5).
-- Abre una pantalla nueva, de solo lectura (`/trips/:tripId/days/:dayId/route`,
-  `DayRouteView.jsx`), con un marcador **numerado** por cada actividad con
-  POI, en el **orden de horario** (`start_time` ascendente) — no el orden de
-  creación ni el `sort_order` de la lista manual, que pueden diferir.
+  HU-2.5) — con un marcador **numerado** por cada actividad con POI, en el
+  **orden de horario** (`start_time` ascendente), no el orden de creación ni
+  el `sort_order` de la lista manual, que pueden diferir.
+- CUANDO el día tiene **menos de 2** actividades con POI asociado (o falla
+  el fetch del recorrido), el panel — para no quedar nunca vacío — muestra
+  en cambio todos los POIs guardados del viaje completo, sin trazado, igual
+  que la vista general de "Mapa & Lugares".
 - El trazado real de caminata entre paradas consecutivas se dibuja con la
   geometría de OSRM (`GET /route/v1/foot/...?overview=full&geometries=geojson`,
   distinto endpoint del `/table/v1/foot` que usa la caché de HU-2.5 — este sí
@@ -692,8 +712,8 @@ Detalle completo, protecciones y riesgos aceptados en
 - El mapa se encuadra automáticamente (`fitBounds`) sobre todas las paradas y
   el trazado. Tocar un marcador muestra el nombre de la actividad y del POI
   asociado en un popup.
-- Sin controles de edición de ningún tipo — a diferencia de HU-2.5/HU-2.6,
-  esta pantalla no permite reordenar, editar ni aplicar cambios.
+- Sin controles de edición de ningún tipo — a diferencia de HU-2.5/HU-2.6, el
+  mapa no permite reordenar, editar ni aplicar cambios.
 
 ## Frontend v2 — reconstrucción visual y de navegación
 

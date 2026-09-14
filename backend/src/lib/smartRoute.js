@@ -176,102 +176,112 @@ export function validatePoiOrderProposal(proposal, inputIds) {
   }
 }
 
-const AREA_ROUTE_TOOL = {
-  name: 'propose_area_route',
+const DISCOVERY_CATEGORIES = ['cat_attraction', 'cat_nature', 'cat_culture'];
+
+const CLASSIFY_DISCOVERED_TOOL = {
+  name: 'classify_discovered_pois',
   description:
-    'Elige entre 4 y 6 paradas para un recorrido a pie dentro de una zona del mapa, combinando lugares ya guardados por el viajero y descubrimientos nuevos cercanos, y las ordena.',
+    'Clasifica una lista de lugares crudos de OpenStreetMap en las categorías Atracción ' +
+    'turística, Naturaleza/Aire libre o Cultura, descartando (no incluyendo en la respuesta) ' +
+    'los que no encajen claramente en ninguna, o sean de baja calidad: nombre que no parece un ' +
+    'lugar real, ruido, o duplicados entre sí.',
   input_schema: {
     type: 'object',
     properties: {
-      selected: {
+      accepted: {
         type: 'array',
-        minItems: 4,
-        maxItems: 6,
         items: {
           type: 'object',
           properties: {
             candidate_id: { type: 'string', description: 'ID exacto del candidato, tal como vino en el input' },
-            reason: { type: 'string', description: 'Justificación breve, una oración' },
+            category_id: {
+              type: 'string',
+              enum: DISCOVERY_CATEGORIES,
+              description: 'Categoría elegida para este lugar',
+            },
           },
-          required: ['candidate_id', 'reason'],
+          required: ['candidate_id', 'category_id'],
         },
-        description: 'Entre 4 y 6 candidatos, en el orden sugerido de visita',
+        description:
+          'Los candidatos que vale la pena mostrarle al viajero como descubrimiento, cada uno ' +
+          'con su categoría. Omití los que no encajen o sean de baja calidad — no hace falta ' +
+          'devolver todos los que recibiste, ni ninguno si ninguno vale la pena.',
       },
-      summary: { type: 'string', description: 'Resumen de la propuesta, 1-2 oraciones' },
     },
-    required: ['selected', 'summary'],
+    required: ['accepted'],
   },
 };
 
 /**
- * Ask Claude to pick 4-6 stops (a SUBSET, unlike proposeDayRoute/proposePoiOrder
- * which must return every input item) out of a mixed pool of already-saved
- * POIs and freshly-discovered OSM candidates (HU-2.6b), ordered for walking.
- * `input`: { candidates: [{candidate_id, name, category, is_new, estimated_duration_minutes}],
- *            walking_times_minutes: number[][] } (matrix indexed like candidates)
+ * Ask Claude to classify raw Overpass candidates (HU-2.8) into the 3
+ * categories this search covers, discarding low-quality/unclear/duplicate
+ * ones. A SUBSET of the input like proposeAreaRoute/proposePoiOrder used to
+ * be, but with no minimum size — Claude may keep anywhere from none to all
+ * of them, since "discard the bad ones" is the whole point of this pass.
+ * `input`: { candidates: [{candidate_id, name, hint}] }
+ * @returns {Promise<{candidate_id:string, category_id:string}[]>}
  */
-export async function proposeAreaRoute(input) {
+export async function classifyDiscoveredPois(input) {
   const anthropic = new Anthropic({ apiKey: config.anthropic.apiKey });
 
   const prompt =
-    'Sos un asistente de planificación de viajes. Te paso una lista de lugares candidatos ' +
-    'dentro de una zona del mapa que el viajero está mirando — algunos ya los tiene guardados ' +
-    '(is_new: false), otros son descubrimientos nuevos cercanos (is_new: true) — junto con la ' +
-    'matriz de tiempos de caminata estimados entre cada par (walking_times_minutes[i][j], en ' +
-    'minutos, misma posición que candidates). Elegí entre 4 y 6 candidatos que tengan sentido ' +
-    'combinar en un recorrido a pie corto (mezclando guardados y nuevos si corresponde, no hace ' +
-    'falta usar todos de un tipo) y devolvelos en el mejor orden de visita. Usá el candidate_id ' +
-    'exacto de cada uno elegido.\n\n' +
+    'Sos un asistente de planificación de viajes. Te paso una lista cruda de lugares sacados ' +
+    'de OpenStreetMap dentro de una zona del mapa, cada uno con una pista (hint) de sus tags ' +
+    'originales. Clasificá cada lugar que tenga sentido mostrarle a un viajero en una de estas ' +
+    '3 categorías: cat_attraction (atracción turística), cat_nature (naturaleza/aire libre) o ' +
+    'cat_culture (cultura — museos, sitios históricos). Descartá (no incluyas en la respuesta) ' +
+    'los que no encajen claramente en ninguna categoría, tengan un nombre que no parezca un ' +
+    'lugar real, o sean ruido/duplicados entre sí. Usá el candidate_id exacto de cada uno que ' +
+    'aceptes.\n\n' +
     JSON.stringify(input, null, 2);
 
   let response;
   try {
     response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 1500,
-      tools: [AREA_ROUTE_TOOL],
-      tool_choice: { type: 'tool', name: 'propose_area_route' },
+      max_tokens: 3000,
+      tools: [CLASSIFY_DISCOVERED_TOOL],
+      tool_choice: { type: 'tool', name: 'classify_discovered_pois' },
       messages: [{ role: 'user', content: prompt }],
     });
   } catch (err) {
-    const e = new Error(`No se pudo generar la sugerencia (API de Claude): ${err.message}`);
+    const e = new Error(`No se pudo clasificar los lugares encontrados (API de Claude): ${err.message}`);
     e.status = 502;
     throw e;
   }
 
   const block = response.content.find((b) => b.type === 'tool_use');
-  if (!block?.input?.selected) {
-    const e = new Error('La API de Claude no devolvió una propuesta válida');
+  if (!block?.input?.accepted) {
+    const e = new Error('La API de Claude no devolvió una clasificación válida');
     e.status = 502;
     throw e;
   }
 
-  validateAreaRouteProposal(
-    block.input,
-    input.candidates.map((c) => c.candidate_id)
-  );
-  return block.input;
+  return validateClassifiedPois(block.input, input.candidates.map((c) => c.candidate_id));
 }
 
+const ALLOWED_DISCOVERY_CATEGORIES = new Set(DISCOVERY_CATEGORIES);
+
 /**
- * Unlike validateProposal()/validatePoiOrderProposal() (exact set match),
- * this only needs: 4-6 items, no duplicates, every id a real candidate —
- * Claude is meant to narrow the pool down, not return all of it.
+ * Unlike validateProposal()/validatePoiOrderProposal()/the old
+ * validateAreaRouteProposal() (throw on any mismatch), this filters instead
+ * of throwing: a per-item bad id/category from Claude just means that one
+ * item gets dropped, not that the whole classification fails — "discard the
+ * ones that don't fit" is expected, normal output here, not an error case.
  */
-export function validateAreaRouteProposal(proposal, candidateIds) {
+export function validateClassifiedPois(proposal, candidateIds) {
   const validIds = new Set(candidateIds);
-  const outIds = (proposal?.selected || []).map((s) => s.candidate_id);
-  const outSet = new Set(outIds);
-  const ok =
-    outIds.length >= 4 &&
-    outIds.length <= 6 &&
-    outSet.size === outIds.length &&
-    outIds.every((id) => validIds.has(id));
-  if (!ok) {
-    const e = new Error('La sugerencia de Claude no eligió entre 4 y 6 lugares válidos de la zona');
-    e.status = 502;
-    throw e;
+  const accepted = Array.isArray(proposal?.accepted) ? proposal.accepted : [];
+  const seen = new Set();
+  const out = [];
+  for (const item of accepted) {
+    if (!item?.candidate_id || !validIds.has(item.candidate_id)) continue;
+    if (seen.has(item.candidate_id)) continue;
+    if (!ALLOWED_DISCOVERY_CATEGORIES.has(item.category_id)) continue;
+    seen.add(item.candidate_id);
+    out.push({ candidate_id: item.candidate_id, category_id: item.category_id });
   }
+  return out;
 }
 
 export default proposeDayRoute;

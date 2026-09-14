@@ -97,23 +97,6 @@ export async function walkTimeMatrix(pois) {
 }
 
 /**
- * Walking-time matrix for points that don't have a persisted POI id yet
- * (HU-2.6b's discovery candidates mix saved POIs with un-saved OSM finds) —
- * same OSRM-table-then-haversine logic as walkTimeMatrix(), but keyed by
- * array index instead of POI id and with NO cache read/write (there's
- * nothing stable to key the cache on, and these candidates may never be
- * saved at all).
- *
- * @param {{lat:number,lng:number}[]} points
- * @returns {Promise<{minutes:number[][], source:'osrm'|'haversine_estimate'}>}
- */
-export async function estimateWalkMatrix(points) {
-  const osrm = points.length > 1 ? await osrmMatrix(points) : null;
-  const minutes = points.map((a, i) => points.map((b, j) => (i === j ? 0 : osrm?.[i]?.[j] ?? haversineMinutes(a, b))));
-  return { minutes, source: osrm ? 'osrm' : 'haversine_estimate' };
-}
-
-/**
  * The real walking-path geometry between two points (Épica 11 — read-only
  * day route view). Falls back to a straight line if OSRM fails; this is a
  * one-off screen query, not worth a persistent cache like walkTimeMatrix's.

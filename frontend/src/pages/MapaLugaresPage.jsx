@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAsync } from '../hooks/useAsync.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { getTrip } from '../services/trips.js';
-import { listPois, listPoiCategories, createPoi, updatePoi, deletePoi } from '../services/pois.js';
+import { listPois, listPoiCategories, createPoi, updatePoi, deletePoi, discoverPoisInZone } from '../services/pois.js';
 import { listRouteTemplates, deleteRouteTemplate } from '../services/routeTemplates.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
@@ -14,7 +14,6 @@ import PoiFilterBar from '../components/PoiFilterBar.jsx';
 import RouteBuilderPanel from '../components/RouteBuilderPanel.jsx';
 import SavedRouteTemplates from '../components/SavedRouteTemplates.jsx';
 import ApplyRouteModal from '../components/ApplyRouteModal.jsx';
-import DiscoverRouteModal from '../components/DiscoverRouteModal.jsx';
 import { categoryMsi } from '../utils/poiCategories.js';
 import { applyPoiFilters, citiesOf } from '../utils/poiFilters.js';
 import { usePoiFilters } from '../hooks/usePoiFilters.js';
@@ -62,7 +61,44 @@ export default function MapaLugaresPage() {
   const [applyTarget, setApplyTarget] = useState(null); // template being applied
   const [actionError, setActionError] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
-  const [discoverBounds, setDiscoverBounds] = useState(null); // truthy opens DiscoverRouteModal
+
+  // HU-2.8 — "Buscar POIs en la zona": a temporary layer of green markers over
+  // the map, never persisted. Cleared when the search mode is closed or the
+  // visible map area changes (a real user pan/zoom, not the re-fit triggered
+  // by adding one of these to the trip's real POI list — see the moveend
+  // handler below).
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState(null);
+  const [discovered, setDiscovered] = useState([]);
+  const [addingCandidateId, setAddingCandidateId] = useState(null);
+  const suppressNextAutoClear = useRef(false);
+
+  useEffect(() => {
+    if (!mapInstance) return undefined;
+    const handleMoveEnd = () => {
+      if (suppressNextAutoClear.current) {
+        suppressNextAutoClear.current = false;
+        return;
+      }
+      setDiscovered((prev) => (prev.length > 0 ? [] : prev));
+    };
+    mapInstance.on('moveend', handleMoveEnd);
+    return () => mapInstance.off('moveend', handleMoveEnd);
+  }, [mapInstance]);
+
+  useEffect(() => {
+    if (view !== 'mapa') setDiscovered([]);
+  }, [view]);
+
+  // Memoized so this array reference only changes when the POIs or filters
+  // actually change — not on every unrelated state update in this page
+  // (discovering, addingCandidateId, etc). Passed straight to TripMap as
+  // `pois`, whose FitBounds effect re-fits the map (firing 'moveend') any
+  // time that reference changes; an unmemoized recompute-every-render here
+  // was spuriously re-fitting (and via the moveend handler above, wiping
+  // out the HU-2.8 discovered layer) on state changes that had nothing to
+  // do with the POIs shown.
+  const filteredPois = useMemo(() => applyPoiFilters(data?.pois || [], filters), [data, filters]);
 
   const run = async (fn) => {
     setActionError(null);
@@ -79,7 +115,6 @@ export default function MapaLugaresPage() {
 
   const { trip, pois, categories, routeTemplates } = data;
   const cities = citiesOf(pois);
-  const filteredPois = applyPoiFilters(pois, filters);
 
   const handleSubmitPoi = (payload) =>
     run(async () => {
@@ -97,6 +132,7 @@ export default function MapaLugaresPage() {
   const startBuilding = (editingTemplate = null) => {
     setBuilding({ editingTemplate });
     setSelected(editingTemplate ? editingTemplate.stops.map((s) => pois.find((p) => p.id === s.id) || s) : []);
+    setDiscovered([]);
   };
   const cancelBuilding = () => {
     setBuilding(false);
@@ -117,21 +153,50 @@ export default function MapaLugaresPage() {
     run(() => deleteRouteTemplate(t.id));
   };
 
-  const openDiscovery = () => {
+  const searchZone = async () => {
     if (!mapInstance) return;
-    const b = mapInstance.getBounds();
-    setDiscoverBounds({
-      south: b.getSouth(),
-      west: b.getWest(),
-      north: b.getNorth(),
-      east: b.getEast(),
-    });
+    setDiscoverError(null);
+    setDiscovering(true);
+    try {
+      const b = mapInstance.getBounds();
+      const results = await discoverPoisInZone(id, {
+        south: b.getSouth(),
+        west: b.getWest(),
+        north: b.getNorth(),
+        east: b.getEast(),
+      });
+      setDiscovered(results);
+    } catch (err) {
+      setDiscoverError(err.message);
+    } finally {
+      setDiscovering(false);
+    }
   };
-  const handleDiscoveryConfirmed = (realPois) => {
-    setDiscoverBounds(null);
-    setBuilding({ editingTemplate: null });
-    setSelected(realPois);
-    reload();
+  const closeSearch = () => {
+    setDiscovered([]);
+    setDiscoverError(null);
+  };
+  const handleAddDiscovered = async (item) => {
+    setAddingCandidateId(item.candidate_id);
+    try {
+      await createPoi(id, {
+        name: item.name,
+        category_id: item.category_id,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        address: item.address || undefined,
+      });
+      setDiscovered((prev) => prev.filter((d) => d.candidate_id !== item.candidate_id));
+      // The reload() below refreshes `pois`, which re-fits the map bounds
+      // (TripMap's FitBounds effect) and fires its own moveend — not a real
+      // pan/zoom, so it shouldn't wipe out the discovered markers still left.
+      suppressNextAutoClear.current = true;
+      reload();
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setAddingCandidateId(null);
+    }
   };
 
   const selectedOrder = new Map(selected.map((p, i) => [p.id, i + 1]));
@@ -149,9 +214,16 @@ export default function MapaLugaresPage() {
           )}
           {view === 'mapa' && !building && (
             <>
-              <button className="btn btn-ai" onClick={openDiscovery} disabled={!mapInstance}>
-                <span className="msi text-[16px]">auto_awesome</span>Sugerir recorrido en esta zona
-              </button>
+              {discovered.length > 0 ? (
+                <button className="btn btn-secondary" onClick={closeSearch}>
+                  <span className="msi text-[16px]">close</span>Cerrar búsqueda
+                </button>
+              ) : (
+                <button className="btn btn-ai" onClick={searchZone} disabled={!mapInstance || discovering}>
+                  <span className="msi text-[16px]">travel_explore</span>
+                  {discovering ? 'Buscando…' : 'Buscar POIs en la zona'}
+                </button>
+              )}
               {pois.length > 0 && (
                 <button className="btn" onClick={() => startBuilding()}>
                   <span className="msi text-[16px]">explore</span>Armar recorrido
@@ -163,6 +235,12 @@ export default function MapaLugaresPage() {
       </div>
 
       {actionError && <ErrorMessage error={actionError} />}
+      {discoverError && <ErrorMessage error={discoverError} />}
+      {view === 'mapa' && !building && discovered.length > 0 && (
+        <div className="muted mb-3">
+          {discovered.length === 1 ? '1 lugar encontrado en esta zona.' : `${discovered.length} lugares encontrados en esta zona.`}
+        </div>
+      )}
 
       {!building && pois.length > 0 && (
         <PoiFilterBar
@@ -256,6 +334,9 @@ export default function MapaLugaresPage() {
                   selectedOrder={building ? selectedOrder : undefined}
                   onToggleSelect={toggleSelect}
                   onMapReady={setMapInstance}
+                  discovered={building ? [] : discovered}
+                  onAddDiscovered={handleAddDiscovered}
+                  addingCandidateId={addingCandidateId}
                 />
               )}
             </div>
@@ -291,15 +372,6 @@ export default function MapaLugaresPage() {
 
       {applyTarget && (
         <ApplyRouteModal template={applyTarget} days={trip.days} onClose={() => setApplyTarget(null)} onApplied={reload} />
-      )}
-
-      {discoverBounds && (
-        <DiscoverRouteModal
-          tripId={id}
-          bounds={discoverBounds}
-          onClose={() => setDiscoverBounds(null)}
-          onConfirmed={handleDiscoveryConfirmed}
-        />
       )}
     </div>
   );

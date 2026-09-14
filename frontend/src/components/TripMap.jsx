@@ -23,9 +23,19 @@ function routeStopIcon(n) {
   return L.divIcon({ html, className: 'poi-pin', iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -18] });
 }
 
+/** Same shape as poiIcon() but green, so a freshly-discovered place (HU-2.8,
+ * not saved yet) reads as visually distinct from an already-saved POI. */
+function discoveredIcon(msi) {
+  const html = `
+    <div class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md border-2 border-white">
+      <span class="msi" style="font-size:13px">${msi}</span>
+    </div>`;
+  return L.divIcon({ html, className: 'poi-pin', iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -14] });
+}
+
 /** Hands the underlying Leaflet map instance up to the parent once, so it
- * can read live state (e.g. getBounds() for HU-2.6b's area discovery)
- * without this component needing to know why. */
+ * can read live state (e.g. getBounds() for HU-2.8's "Buscar POIs en la
+ * zona") without this component needing to know why. */
 function MapInstanceReporter({ onReady }) {
   const map = useMap();
   useEffect(() => {
@@ -60,7 +70,17 @@ function FitBounds({ points }) {
   return null;
 }
 
-export default function TripMap({ pois, selectable = false, selectedIds, onToggleSelect, selectedOrder, onMapReady }) {
+export default function TripMap({
+  pois,
+  selectable = false,
+  selectedIds,
+  onToggleSelect,
+  selectedOrder,
+  onMapReady,
+  discovered = [],
+  onAddDiscovered,
+  addingCandidateId,
+}) {
   const points = useMemo(() => pois.map((p) => [Number(p.latitude), Number(p.longitude)]), [pois]);
 
   return (
@@ -125,6 +145,28 @@ export default function TripMap({ pois, selectable = false, selectedIds, onToggl
             </Marker>
           );
         })}
+        {discovered.map((d) => (
+          <Marker key={d.candidate_id} position={[Number(d.latitude), Number(d.longitude)]} icon={discoveredIcon(categoryMsi(d))}>
+            <Popup>
+              <div className="w-56 p-2.5">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="msi text-[13px] text-tertiary">{categoryMsi(d)}</span>
+                  <span className="text-[11px] text-on-surface-variant">{d.category_name}</span>
+                </div>
+                <div className="font-semibold text-[13px]">{d.name}</div>
+                {d.address && <div className="text-[11px] text-on-surface-variant mt-0.5">{d.address}</div>}
+                <button
+                  type="button"
+                  className="text-[11px] font-semibold mt-1.5 text-secondary disabled:text-on-surface-variant disabled:cursor-wait"
+                  onClick={() => onAddDiscovered?.(d)}
+                  disabled={addingCandidateId === d.candidate_id}
+                >
+                  {addingCandidateId === d.candidate_id ? 'Agregando…' : '+ Agregar a Lugares'}
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
     </div>
   );

@@ -8,9 +8,11 @@ import PoiCategory from '../models/PoiCategory.js';
 import ActivityPoi from '../models/ActivityPoi.js';
 import { sanitizeHttpUrl } from '../lib/url.js';
 import { lookupPhotoNear } from '../lib/photoLookup.js';
-import { blobConfigError } from '../config/index.js';
+import { blobConfigError, anthropicConfigError } from '../config/index.js';
 import { uploadBlob, streamBlob } from '../lib/blob.js';
 import { checkImageFile, MAX_FILE_BYTES } from '../lib/fileTypes.js';
+import { discoverPois, dropNearSaved } from '../lib/poiDiscovery.js';
+import { classifyDiscoveredPois } from '../lib/smartRoute.js';
 
 const router = express.Router();
 // Routes that must NOT sit behind requireAuth — mounted separately, earlier,
@@ -139,6 +141,77 @@ router.post('/trips/:tripId/pois', async (req, res) => {
     if (photo) poi = (await Poi.setPhoto(poi.id, photo)) || poi;
 
     res.status(201).json({ success: true, data: poi });
+  } catch (error) {
+    serverError(res, error);
+  }
+});
+
+// POST /api/trips/:tripId/pois/discover — { bounds: {south,west,north,east} } -> candidate
+// places for "Buscar POIs en la zona" (HU-2.8): Overpass raw results within the visible
+// map area, classified by Claude into the 3 categories this search covers (Atracción
+// turística/Naturaleza/Cultura), minus anything within ~50m of an already-saved POI.
+// Nothing is persisted here — POST /trips/:tripId/pois above does that when the traveler
+// confirms one via "Agregar a Lugares". No area size limit (unlike the old HU-2.6b
+// prototype this replaces): no route/walk-time matrix is computed, so it's cheap either way.
+router.post('/trips/:tripId/pois/discover', async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.tripId);
+    if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
+
+    const b = req.body.bounds || {};
+    const bounds = {
+      south: Number(b.south),
+      west: Number(b.west),
+      north: Number(b.north),
+      east: Number(b.east),
+    };
+    if (!Object.values(bounds).every(Number.isFinite)) {
+      return res.status(400).json({ success: false, error: 'Faltan los límites del área visible del mapa' });
+    }
+
+    const configErr = anthropicConfigError();
+    if (configErr) return res.status(503).json({ success: false, error: configErr });
+
+    const raw = await discoverPois(bounds);
+    if (raw.length === 0) return res.json({ success: true, data: [] });
+
+    const savedPois = await Poi.findByTripId(trip.id);
+    const unseen = dropNearSaved(raw, savedPois);
+    if (unseen.length === 0) return res.json({ success: true, data: [] });
+
+    const withIds = unseen.map((c, i) => ({ ...c, candidate_id: `osm:${i}` }));
+    const classified = await classifyDiscoveredPois({
+      candidates: withIds.map((c) => ({ candidate_id: c.candidate_id, name: c.name, hint: c.hint })),
+    }).catch((e) => {
+      res.status(e.status || 502).json({ success: false, error: e.message });
+      return null;
+    });
+    if (!classified) return undefined;
+
+    const categories = await PoiCategory.findAll();
+    const categoryById = new Map(categories.map((c) => [c.id, c]));
+    const byId = new Map(withIds.map((c) => [c.candidate_id, c]));
+
+    const data = classified
+      .map(({ candidate_id, category_id }) => {
+        const c = byId.get(candidate_id);
+        const cat = categoryById.get(category_id);
+        if (!c || !cat) return null;
+        return {
+          candidate_id,
+          name: c.name,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          address: c.address,
+          category_id,
+          category_name: cat.name,
+          category_icon: cat.icon,
+          category_color: cat.color,
+        };
+      })
+      .filter(Boolean);
+
+    res.json({ success: true, data });
   } catch (error) {
     serverError(res, error);
   }

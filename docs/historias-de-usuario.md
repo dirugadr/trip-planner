@@ -775,37 +775,98 @@ no se rompen).
   (vía su POI vinculado, HU-8.6) y tarjeta de la lista de viajes (foto de
   portada = la del POI guardado más antiguo del viaje que tenga una).
 
-### HU-2.6b — Sugerir recorrido según el área visible del mapa ✅
-**Como** viajero, **quiero** que se me sugieran lugares para visitar en la zona que estoy mirando en el mapa, **para** descubrir sitios que no conocía sin salir de la app.
+### ~~HU-2.6b — Sugerir recorrido según el área visible del mapa~~ (reemplazada por HU-2.8 ↓)
 
-- Un botón "✨ Sugerir recorrido en esta zona" en la vista Mapa toma los
+> Esta historia quedó **reemplazada por HU-2.8** (más abajo): el botón
+> "✨ Sugerir recorrido en esta zona", el endpoint `POST
+> /trips/:tripId/smart-route/discover`, `proposeAreaRoute`/
+> `validateAreaRouteProposal`/`AREA_ROUTE_TOOL` (`smartRoute.js`),
+> `areaKm2`/`MAX_AREA_KM2` (`poiDiscovery.js`), `estimateWalkMatrix`
+> (`routing.js`) y `DiscoverRouteModal.jsx` se eliminaron por completo — no
+> quedan ni el botón ni el endpoint huérfanos. El texto de abajo describe el
+> diseño tal cual se había implementado, solo como referencia histórica de
+> qué cambió y por qué.
+
+- Un botón "✨ Sugerir recorrido en esta zona" en la vista Mapa tomaba los
   límites (`bounds`) actuales del mapa de Leaflet.
-- El sistema DEBE rechazar un área mayor a 4 km², indicando que hay que
-  acercar el zoom — verificado en vivo (bounds de ~17 km² rechazado, bounds
-  de ~1 km² aceptado).
-- El sistema DEBE buscar lugares nuevos en esa área vía Overpass API
+- El sistema rechazaba un área mayor a 4 km², indicando que había que
+  acercar el zoom.
+- Buscaba lugares nuevos en esa área vía Overpass API
   (`tourism=attraction/museum/hotel`, `amenity=restaurant/cafe`,
   `leisure=park`, `natural=*`, `railway=station`, sin nombre descartados,
-  tope de 30 candidatos), y sumarlos a los POIs ya guardados dentro de la
-  misma área (deduplicados por nombre). Best-effort: si Overpass falla o
-  está lento (el endpoint público es notoriamente inestable — confirmado en
-  este entorno, ver `poiDiscovery.js`), la propuesta sigue adelante solo con
-  los POIs ya guardados si alcanzan; si no hay al menos 4 candidatos en
-  total, se informa el motivo en vez de fallar en silencio.
-- El sistema DEBE proponer 4 a 6 paradas combinando guardados y
-  descubrimientos (`propose_area_route`, Claude tool-use forzado, mismo
-  patrón que HU-2.5/HU-2.6 pero **eligiendo un subconjunto** en vez de
-  reordenar el total — `validateAreaRouteProposal` verificado con 5 casos:
-  selección válida, <4, >6, id inexistente y duplicado). El tiempo de
-  caminata entre candidatos usa una variante de la matriz de HU-2.5
-  (`estimateWalkMatrix`) sin caché — los candidatos nuevos no tienen un
-  `poi_id` real todavía para cachear contra él.
-- La propuesta distingue visualmente los descubrimientos nuevos (badge
-  "Nuevo") de los ya guardados, y permite sacar paradas antes de confirmar.
-  Nada se persiste hasta confirmar — descartar la propuesta no crea POIs.
-- AL confirmar, el sistema DEBE crear como POI real (`POST
-  /trips/:tripId/pois`, disparando también la búsqueda automática de foto
-  de arriba) solo los descubrimientos que quedaron en la versión final, y
-  reusa el flujo existente de "armar recorrido" (HU-2.6) — la confirmación
-  precarga el panel de armado con las paradas ya resueltas, en vez de tener
-  su propio mecanismo de guardado.
+  tope de 30 candidatos), y los sumaba a los POIs ya guardados dentro de la
+  misma área (deduplicados por nombre). Best-effort: si Overpass fallaba o
+  estaba lento (el endpoint público es notoriamente inestable — confirmado
+  en este entorno, y otra vez al reimplementar HU-2.8), la propuesta seguía
+  adelante solo con los POIs ya guardados si alcanzaban.
+- Proponía 4 a 6 paradas combinando guardados y descubrimientos
+  (`propose_area_route`, Claude tool-use forzado, **eligiendo un
+  subconjunto** en vez de reordenar el total), calculaba una matriz de
+  tiempos de caminata entre candidatos, y armaba un recorrido completo con
+  orden y horarios — mucho más que "buscar lugares": un armado de recorrido
+  automático con IA, que resultó ser una carga cognitiva/de UI más pesada de
+  lo que HU-2.8 pide (ver más abajo).
+- AL confirmar, creaba como POI real solo los descubrimientos que quedaban
+  en la versión final, precargando el panel de "armar recorrido" (HU-2.6)
+  con las paradas ya resueltas.
+
+### HU-2.8 — Buscar POIs en la zona ✅
+**Como** viajero, **quiero** descubrir atracciones, lugares de naturaleza y sitios culturales en la zona que estoy mirando en el mapa, **para** encontrar lugares que no conocía y agregarlos si me interesan.
+
+> Reemplaza a HU-2.6b (arriba): en vez de armar automáticamente un
+> recorrido completo (orden + horarios) mezclando descubrimientos con
+> POIs guardados, esta versión es más simple y directa — solo descubre y
+> deja que el viajero agregue los que le interesen a Lugares, uno por uno,
+> sin límite de área ni cálculo de tiempos de caminata.
+
+- Un botón "Buscar POIs en la zona" en la vista Mapa (reemplaza al de
+  "Sugerir recorrido en esta zona" de HU-2.6b) toma `map.getBounds()` de
+  Leaflet y llama a `POST /api/trips/:tripId/pois/discover`. **Sin límite
+  de área** — a diferencia de HU-2.6b, no calcula recorrido ni tiempos de
+  caminata, así que una búsqueda amplia es igualmente liviana.
+- El sistema busca en Overpass API restringido a las 3 categorías que
+  cubre esta búsqueda — Atracción turística (`tourism=attraction/viewpoint`),
+  Naturaleza/Aire libre (`leisure=park`, `natural=*`) y Cultura
+  (`tourism=museum`, `historic=*`) — con un tope de 60 resultados crudos
+  (`discoverPois()` en `poiDiscovery.js`, reutilizado y reescrito del
+  prototipo de HU-2.6b: mismo mecanismo, tags distintos, sin cap de área).
+- Esos 60 candidatos crudos se clasifican con Claude (tool-use forzado,
+  `classify_discovered_pois` en `smartRoute.js`) en una de las 3 categorías
+  permitidas, descartando (no devolviendo) los que no encajen claramente o
+  sean de baja calidad — sin nombre, ruido, duplicados entre sí.
+  `validateClassifiedPois` filtra en vez de tirar error ante una respuesta
+  parcialmente inválida de Claude (a diferencia de los validadores de
+  HU-2.5/HU-2.6/la vieja HU-2.6b, que exigen una coincidencia exacta):
+  "descartar los que no encajan" es la salida normal esperada acá, no un
+  caso de error. Verificado con 6 casos inline (subconjunto válido, vacío,
+  id inexistente, categoría no permitida, id duplicado, propuesta
+  malformada).
+- Los que ya estén guardados en el viaje se descartan por proximidad
+  geográfica (`dropNearSaved()`, <50m, sin comparar nombre) — verificado con
+  casos inline (candidato pegado a un POI guardado descartado, candidato
+  lejano conservado).
+- Los resultados se muestran como marcadores verdes en el mapa (mismo
+  ícono por categoría que un POI guardado, vía `categoryMsi`, pero con
+  fondo verde — `TripMap.jsx` ahora acepta `discovered`/`onAddDiscovered`
+  además de los POIs guardados). Tocar un marcador verde abre un popup con
+  nombre, categoría, dirección (si Overpass la trajo) y un botón "+ Agregar
+  a Lugares".
+- AL agregar, se llama a `POST /trips/:tripId/pois` (HU-2.1, sin endpoint
+  paralelo) con los datos ya resueltos por Overpass (no hace falta
+  regeocodificar con Nominatim) — dispara también la búsqueda automática de
+  foto por Wikipedia como cualquier POI nuevo. El marcador agregado se saca
+  de la capa temporal de inmediato; el POI real aparece con el estilo
+  normal en cuanto se recarga la lista de POIs del viaje.
+- La capa de descubiertos es estado local de `MapaLugaresPage.jsx` — nunca
+  se persiste. Se limpia al cerrar el modo búsqueda ("Cerrar búsqueda"), al
+  entrar a "Armar recorrido", al salir de la vista Mapa, o al mover/hacer
+  zoom real al mapa (`moveend` de Leaflet) — con cuidado de **no** limpiarla
+  por el re-encuadre del mapa que dispara agregar un lugar (ese `moveend`
+  programático se suprime una vez con un ref, para no borrar el resto de la
+  búsqueda apenas se agrega el primero).
+- Requiere `ANTHROPIC_API_KEY_TP` (503 si no está configurado, mismo gate
+  que HU-2.5/HU-2.6) — la clasificación real de Claude no se pudo probar
+  end-to-end en este entorno local (sin la key), igual que las demás
+  funciones de IA de este proyecto; sí se probó en vivo el fetch real a
+  Overpass con las nuevas categorías/tags (confirmando la inestabilidad ya
+  documentada del servidor público) y el resto del pipeline hasta ese punto.

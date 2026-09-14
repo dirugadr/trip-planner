@@ -18,6 +18,3 @@ export const smartOrderPois = (tripId, poiIds) =>
 
 export const applyRouteTemplate = (id, dayId, startTime) =>
   apiPost(`/route-templates/${id}/apply`, { day_id: dayId, start_time: startTime });
-
-export const discoverAreaRoute = (tripId, bounds) =>
-  apiPost(`/trips/${tripId}/smart-route/discover`, { bounds });

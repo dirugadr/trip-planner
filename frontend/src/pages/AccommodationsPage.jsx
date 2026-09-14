@@ -81,7 +81,7 @@ export default function AccommodationsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-6">
+    <div className="px-6 py-6">
       <div className="row-between mb-4">
         <h1 className="text-[22px] font-bold">Alojamientos</h1>
         <button className="btn" onClick={() => setModal({})}>
@@ -93,9 +93,9 @@ export default function AccommodationsPage() {
       <div className="muted mb-3">{trip.name}</div>
 
       {accommodations.length === 0 ? (
-        <div className="empty-state">Todavía no cargaste alojamientos.</div>
+        <div className="empty-state max-w-3xl">Todavía no cargaste alojamientos.</div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 max-w-3xl">
           {accommodations.map((a) => {
             const linked = expenseByAcc.get(a.id);
             const poi = poiByAcc.get(a.id);

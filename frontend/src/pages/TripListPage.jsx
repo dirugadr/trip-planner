@@ -29,7 +29,7 @@ export default function TripListPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="px-6 py-8">
       <div className="row-between mb-6">
         <h1 className="text-[24px] font-bold">Tus viajes</h1>
         <button className="btn" onClick={() => setShowForm(true)}>
@@ -41,7 +41,7 @@ export default function TripListPage() {
       {error && <ErrorMessage error={error} onRetry={reload} />}
 
       {!loading && !error && trips.length === 0 && (
-        <div className="empty-state">
+        <div className="empty-state max-w-4xl">
           <p>Todavía no tenés viajes.</p>
           <button className="btn" onClick={() => setShowForm(true)}>
             Crear el primero
@@ -50,7 +50,7 @@ export default function TripListPage() {
       )}
 
       {!loading && !error && (
-        <div className="space-y-3">
+        <div className="space-y-3 max-w-4xl">
           {trips.map((trip) => {
             const past = isPastTrip(trip);
             return (

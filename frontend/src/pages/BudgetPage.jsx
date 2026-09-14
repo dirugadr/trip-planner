@@ -108,7 +108,7 @@ export default function BudgetPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-6">
+    <div className="px-6 py-6">
       <div className="row-between mb-4">
         <h1 className="text-[22px] font-bold">Presupuesto</h1>
         <button
@@ -124,6 +124,7 @@ export default function BudgetPage() {
       {actionError && <ErrorMessage error={actionError} />}
       <div className="muted mb-3">{trip.name}</div>
 
+      <div className="max-w-3xl">
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-surface rounded-xl p-4 border border-outline-variant/20">
           <div className="text-[12px] text-on-surface-variant">Presupuesto</div>
@@ -243,6 +244,7 @@ export default function BudgetPage() {
           })}
         </div>
       )}
+      </div>
 
       {confirmNode}
 

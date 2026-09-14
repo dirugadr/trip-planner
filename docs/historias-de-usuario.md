@@ -716,6 +716,23 @@ la pantalla (antes solo aparecía dentro del formulario de actividad),
 resumen de caminata total / tiempo en tránsito / gastado del día (derivado
 en el cliente de `GET /days/:dayId/route-view`, HU-11.1, sin request nuevo).
 
+**Ajuste — ancho completo (sin `max-w`+`mx-auto` centrado) ✅**: los
+contenedores principales de cada pantalla (Itinerario, Mapa & Lugares,
+Presupuesto, Alojamientos, Documentos & Links, lista de viajes y la barra de
+navegación superior) usan ahora `px-6`/`px-8` sin `max-w-Nxl mx-auto` — el
+fondo y el header ocupan todo el ancho disponible en vez de quedar
+centrados en una franja angosta. Donde el contenido es texto en lista
+(actividades del Itinerario, lugares, viajes, alojamientos, gastos,
+categorías, documentos, links) se mantiene un `max-w-3xl`/`max-w-4xl` **sin**
+`mx-auto` — así el bloque queda acotado para legibilidad pero alineado a la
+izquierda junto con el header, en vez de flotar centrado en medio de una
+pantalla ancha. Los layouts que sí se benefician del ancho completo (grilla
+panel+mapa de "armar recorrido" en Mapa & Lugares, el mapa de "Ver recorrido
+en mapa") se dejaron sin acotar. Verificado en un viewport de 1680px (headers
+y navegación a ancho completo, bloques de texto acotados a 896px/768px según
+la pantalla) y en mobile (375px, el padding lateral y el layout responsive
+no se rompen).
+
 ### Foto por lugar (POI) ✅
 **Como** viajero, **quiero** que cada lugar tenga una foto, **para** reconocerlo de un vistazo en la lista, el mapa y el itinerario.
 

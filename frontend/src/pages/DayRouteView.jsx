@@ -27,7 +27,7 @@ export default function DayRouteView() {
   const { stops, segments, activities_without_poi_count: withoutPoiCount } = routeView;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6">
+    <div className="px-6 py-6">
       <Link to={`/trips/${id}`} className="btn-link inline-block mb-4">
         ← Volver al itinerario
       </Link>

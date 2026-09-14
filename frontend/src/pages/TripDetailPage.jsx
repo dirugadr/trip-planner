@@ -176,7 +176,7 @@ export default function TripDetailPage() {
   if (error) return <ErrorMessage error={error} onRetry={reload} />;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6">
+    <div className="px-6 py-6">
       <Link to="/" className="btn-link inline-block mb-3">
         ← Volver a mis viajes
       </Link>
@@ -225,7 +225,7 @@ export default function TripDetailPage() {
       </div>
 
       {activeDay && (
-        <>
+        <div className="max-w-4xl">
           <div className="row-between mb-4">
             <div>
               <div className="text-[11px] font-semibold text-secondary uppercase tracking-wide">
@@ -441,7 +441,7 @@ export default function TripDetailPage() {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {confirmNode}

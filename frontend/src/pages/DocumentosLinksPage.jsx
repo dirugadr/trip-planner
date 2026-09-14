@@ -131,7 +131,7 @@ export default function DocumentosLinksPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-6">
+    <div className="px-6 py-6">
       {actionError && <ErrorMessage error={actionError} />}
 
       <div className="row-between mb-4">
@@ -150,6 +150,7 @@ export default function DocumentosLinksPage() {
         </div>
       </div>
 
+      <div className="max-w-3xl">
       {view === 'documentos' ? (
         <>
           <form className="card mb-4" onSubmit={handleUpload}>
@@ -269,6 +270,7 @@ export default function DocumentosLinksPage() {
           )}
         </>
       )}
+      </div>
 
       {confirmNode}
 

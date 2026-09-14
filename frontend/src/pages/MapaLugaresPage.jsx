@@ -137,7 +137,7 @@ export default function MapaLugaresPage() {
   const selectedOrder = new Map(selected.map((p, i) => [p.id, i + 1]));
 
   return (
-    <div className={`mx-auto px-6 py-6 ${view === 'mapa' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+    <div className="px-6 py-6">
       <div className="row-between mb-4">
         <h1 className="text-[22px] font-bold">Mapa &amp; Lugares</h1>
         <div className="flex items-center gap-2">
@@ -178,16 +178,16 @@ export default function MapaLugaresPage() {
 
       {view === 'lista' ? (
         pois.length === 0 ? (
-          <div className="empty-state">Este viaje todavía no tiene lugares. Usá "+ Lugar" para agregar el primero.</div>
+          <div className="empty-state max-w-4xl">Este viaje todavía no tiene lugares. Usá "+ Lugar" para agregar el primero.</div>
         ) : filteredPois.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state max-w-4xl">
             Ningún lugar coincide con el filtro.{' '}
             <button className="btn-link" onClick={clear}>
               Limpiar filtros
             </button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-4xl">
             {filteredPois.map((p) => (
               <div key={p.id} className="bg-surface rounded-xl shadow-sm border border-outline-variant/20 overflow-hidden flex">
                 {p.photo_url ? (
@@ -262,7 +262,7 @@ export default function MapaLugaresPage() {
           </div>
 
           {!building && (
-            <div className="mt-6">
+            <div className="mt-6 max-w-4xl">
               <h2 className="text-[15px] font-semibold mb-2">Recorridos guardados</h2>
               <SavedRouteTemplates
                 templates={routeTemplates}

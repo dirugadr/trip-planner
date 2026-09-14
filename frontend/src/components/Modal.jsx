@@ -9,7 +9,7 @@ export default function Modal({ title, onClose, children }) {
 
   return (
     <div
-      className="fixed inset-0 bg-on-surface/45 flex items-start justify-center p-4 sm:p-12 z-50 overflow-y-auto"
+      className="fixed inset-0 bg-on-surface/45 flex items-start justify-center p-4 sm:p-12 z-[1100] overflow-y-auto"
       onMouseDown={onClose}
     >
       <div

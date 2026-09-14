@@ -36,30 +36,34 @@ function stopsOf(templateId) {
   );
 }
 
-/** Sum of each stop's visit duration + walking time to the next stop. */
-export async function totalMinutesFor(stops) {
-  if (stops.length === 0) return 0;
-  let total = stops.reduce(
+/** Sum of each stop's visit duration + walking time/distance to the next stop. */
+export async function routeStatsFor(stops) {
+  if (stops.length === 0) return { minutes: 0, distanceMeters: 0 };
+  let minutes = stops.reduce(
     (sum, s) => sum + (s.estimated_duration_minutes ?? defaultDurationFor(s.category_id)),
     0
   );
+  let distanceMeters = 0;
   if (stops.length > 1) {
     const walking = await walkTimeMatrix(
       stops.map((s) => ({ id: s.id, lat: Number(s.latitude), lng: Number(s.longitude) }))
     );
-    const byPair = new Map(walking.map((w) => [`${w.from}|${w.to}`, w.minutes]));
+    const byPair = new Map(walking.map((w) => [`${w.from}|${w.to}`, w]));
     for (let i = 0; i < stops.length - 1; i++) {
-      total += byPair.get(`${stops[i].id}|${stops[i + 1].id}`) || 0;
+      const leg = byPair.get(`${stops[i].id}|${stops[i + 1].id}`);
+      minutes += leg?.minutes || 0;
+      distanceMeters += leg?.distance_meters || 0;
     }
   }
-  return total;
+  return { minutes, distanceMeters };
 }
 
 async function attachStopsAndDuration(templates) {
   const out = [];
   for (const t of templates) {
     const stops = await stopsOf(t.id);
-    out.push({ ...t, stops, total_minutes: await totalMinutesFor(stops) });
+    const { minutes, distanceMeters } = await routeStatsFor(stops);
+    out.push({ ...t, stops, total_minutes: minutes, total_distance_meters: distanceMeters });
   }
   return out;
 }

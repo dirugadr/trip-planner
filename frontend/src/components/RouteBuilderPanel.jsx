@@ -1,32 +1,54 @@
 import { useEffect, useState } from 'react';
 import ErrorMessage from './ErrorMessage.jsx';
-import { formatDuration } from '../utils/format.js';
+import { formatDuration, formatDistance } from '../utils/format.js';
 import { previewRouteDuration, smartOrderPois, createRouteTemplate, updateRouteTemplate } from '../services/routeTemplates.js';
+import { categoryMsi } from '../utils/poiCategories.js';
 
 /**
  * Panel for building (or editing) a route template: the traveler picks POIs
- * on the map (selection lives in the parent, via `selected`), reorders them
- * here by dragging, and can ask for a smart walking order before saving.
+ * either on the map or from the "visible in this area" list below (both
+ * call the same `onToggleSelect`), reorders them here by dragging, and can
+ * ask for a smart walking order before saving.
  */
-export default function RouteBuilderPanel({ tripId, selected, onChangeOrder, onRemove, editingTemplate, onSaved, onCancel }) {
+export default function RouteBuilderPanel({
+  tripId,
+  selected,
+  onChangeOrder,
+  onToggleSelect,
+  viewportPois,
+  editingTemplate,
+  onSaved,
+  onCancel,
+}) {
   const [name, setName] = useState(editingTemplate?.name || '');
   const [totalMinutes, setTotalMinutes] = useState(0);
+  const [totalDistanceMeters, setTotalDistanceMeters] = useState(0);
   const [reasons, setReasons] = useState({}); // poi_id -> reason, from the last smart-order suggestion
   const [ordering, setOrdering] = useState(false);
   const [orderError, setOrderError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
+  const selectedIds = new Set(selected.map((p) => p.id));
 
   useEffect(() => {
     let alive = true;
     if (selected.length === 0) {
       setTotalMinutes(0);
+      setTotalDistanceMeters(0);
       return undefined;
     }
     previewRouteDuration(tripId, selected.map((p) => p.id))
-      .then((data) => alive && setTotalMinutes(data.total_minutes))
-      .catch(() => alive && setTotalMinutes(0));
+      .then((data) => {
+        if (!alive) return;
+        setTotalMinutes(data.total_minutes);
+        setTotalDistanceMeters(data.total_distance_meters);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setTotalMinutes(0);
+        setTotalDistanceMeters(0);
+      });
     return () => {
       alive = false;
     };
@@ -83,10 +105,39 @@ export default function RouteBuilderPanel({ tripId, selected, onChangeOrder, onR
         <span className="text-[11px] text-on-surface-variant">{selected.length} lugares</span>
       </div>
       <div className="row-between mb-3">
-        <p className="text-[12px] text-on-surface-variant m-0">Tocá lugares en el mapa para agregarlos</p>
+        <p className="text-[12px] text-on-surface-variant m-0">Tocá lugares en el mapa o en la lista para agregarlos</p>
         <button className="btn-link" onClick={onCancel}>
           Cancelar
         </button>
+      </div>
+
+      <div className="mb-3">
+        <div className="text-[11px] font-semibold text-on-surface-variant mb-1.5">Lugares visibles en el mapa</div>
+        {viewportPois.length === 0 ? (
+          <div className="text-[12px] text-on-surface-variant">Ningún lugar visible en esta zona del mapa.</div>
+        ) : (
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {viewportPois.map((p) => {
+              const isSelected = selectedIds.has(p.id);
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-container-low"
+                >
+                  <span className="msi text-[14px] text-on-surface-variant/60 shrink-0">{categoryMsi(p)}</span>
+                  <span className="text-[12px] flex-1 truncate">{p.name}</span>
+                  <button
+                    type="button"
+                    className={`text-[11px] font-semibold shrink-0 ${isSelected ? 'text-tertiary' : 'text-secondary'}`}
+                    onClick={() => onToggleSelect(p.id)}
+                  >
+                    {isSelected ? '✓ En el recorrido' : '+ Agregar'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {selected.length === 0 ? (
@@ -107,7 +158,12 @@ export default function RouteBuilderPanel({ tripId, selected, onChangeOrder, onR
                   {i + 1}
                 </span>
                 <span className="text-[13px] font-medium flex-1 truncate">{p.name}</span>
-                <button type="button" onClick={() => onRemove(p.id)} aria-label="Quitar" className="msi text-[16px] text-on-surface-variant/60">
+                <button
+                  type="button"
+                  onClick={() => onToggleSelect(p.id)}
+                  aria-label="Quitar"
+                  className="msi text-[16px] text-on-surface-variant/60"
+                >
                   close
                 </button>
                 <span className="msi text-[16px] text-on-surface-variant/50">drag_indicator</span>
@@ -116,9 +172,13 @@ export default function RouteBuilderPanel({ tripId, selected, onChangeOrder, onR
             ))}
           </div>
 
-          <div className="flex items-center justify-between text-[12px] text-on-surface-variant bg-surface-container-low rounded-lg px-3 py-2 mb-3">
+          <div className="flex items-center justify-between text-[12px] text-on-surface-variant bg-surface-container-low rounded-lg px-3 py-2 mb-1">
             <span>Duración total estimada</span>
             <span className="font-semibold text-on-surface">{formatDuration(totalMinutes) || '0 min'}</span>
+          </div>
+          <div className="flex items-center justify-between text-[12px] text-on-surface-variant bg-surface-container-low rounded-lg px-3 py-2 mb-3">
+            <span>Distancia total estimada</span>
+            <span className="font-semibold text-on-surface">{formatDistance(totalDistanceMeters) || '0 m'}</span>
           </div>
 
           {orderError && <ErrorMessage error={orderError} />}

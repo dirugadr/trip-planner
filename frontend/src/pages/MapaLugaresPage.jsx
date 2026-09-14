@@ -61,6 +61,7 @@ export default function MapaLugaresPage() {
   const [applyTarget, setApplyTarget] = useState(null); // template being applied
   const [actionError, setActionError] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
+  const [mapBounds, setMapBounds] = useState(null); // updated on moveend, for the "Armar recorrido" viewport list
 
   // HU-2.8 — "Buscar POIs en la zona": a temporary layer of green markers over
   // the map, never persisted. Cleared when the search mode is closed or the
@@ -75,7 +76,9 @@ export default function MapaLugaresPage() {
 
   useEffect(() => {
     if (!mapInstance) return undefined;
+    setMapBounds(mapInstance.getBounds());
     const handleMoveEnd = () => {
+      setMapBounds(mapInstance.getBounds());
       if (suppressNextAutoClear.current) {
         suppressNextAutoClear.current = false;
         return;
@@ -99,6 +102,16 @@ export default function MapaLugaresPage() {
   // out the HU-2.8 discovered layer) on state changes that had nothing to
   // do with the POIs shown.
   const filteredPois = useMemo(() => applyPoiFilters(data?.pois || [], filters), [data, filters]);
+
+  // Ajuste HU-2.6 — "Armar recorrido" panel's alternative-to-tapping-the-map
+  // list: filteredPois further narrowed to what's currently in view. Memoized
+  // for the same reason as filteredPois above (see its comment) — this also
+  // feeds a child component, so an unmemoized reference would re-render it
+  // every unrelated state change.
+  const viewportPois = useMemo(() => {
+    if (!mapBounds) return filteredPois;
+    return filteredPois.filter((p) => mapBounds.contains([Number(p.latitude), Number(p.longitude)]));
+  }, [filteredPois, mapBounds]);
 
   const run = async (fn) => {
     setActionError(null);
@@ -311,7 +324,8 @@ export default function MapaLugaresPage() {
                   tripId={id}
                   selected={selected}
                   onChangeOrder={setSelected}
-                  onRemove={toggleSelect}
+                  onToggleSelect={toggleSelect}
+                  viewportPois={viewportPois}
                   editingTemplate={building.editingTemplate}
                   onSaved={handleSavedRoute}
                   onCancel={cancelBuilding}

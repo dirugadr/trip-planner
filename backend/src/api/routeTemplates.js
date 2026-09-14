@@ -6,7 +6,7 @@ import Day from '../models/Day.js';
 import Poi from '../models/Poi.js';
 import Activity, { parseHM, findScheduleConflicts } from '../models/Activity.js';
 import ActivityPoi from '../models/ActivityPoi.js';
-import RouteTemplate, { defaultDurationFor, totalMinutesFor } from '../models/RouteTemplate.js';
+import RouteTemplate, { defaultDurationFor, routeStatsFor } from '../models/RouteTemplate.js';
 import { walkTimeMatrix } from '../lib/routing.js';
 import { proposePoiOrder } from '../lib/smartRoute.js';
 import { dbBatch } from '../db/database.js';
@@ -104,7 +104,9 @@ router.post('/trips/:tripId/route-templates/preview', async (req, res) => {
     if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
 
     const poiIds = Array.isArray(req.body.poi_ids) ? req.body.poi_ids : [];
-    if (poiIds.length === 0) return res.json({ success: true, data: { total_minutes: 0 } });
+    if (poiIds.length === 0) {
+      return res.json({ success: true, data: { total_minutes: 0, total_distance_meters: 0 } });
+    }
 
     const pois = await Poi.findByTripId(trip.id);
     const byId = new Map(pois.map((p) => [p.id, p]));
@@ -113,7 +115,8 @@ router.post('/trips/:tripId/route-templates/preview', async (req, res) => {
     }
 
     const stops = poiIds.map((id) => byId.get(id));
-    res.json({ success: true, data: { total_minutes: await totalMinutesFor(stops) } });
+    const { minutes, distanceMeters } = await routeStatsFor(stops);
+    res.json({ success: true, data: { total_minutes: minutes, total_distance_meters: distanceMeters } });
   } catch (error) {
     serverError(res, error);
   }

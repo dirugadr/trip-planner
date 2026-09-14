@@ -227,16 +227,36 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 > Reusa `routing.js`/caché OSRM de HU-2.5 y la validación de conflictos de
 > HU-1.8 (`findScheduleConflicts`), sin duplicarlas.
 
+> 🆕 2026-09-14 — ajuste: además de tocar POIs en el mapa, el panel
+> "Armar recorrido" (`RouteBuilderPanel.jsx`) ahora muestra una lista de los
+> POIs **actualmente visibles en el viewport del mapa** (respetando los
+> filtros de categoría/ciudad activos, misma lógica que la vista Lista —
+> `applyPoiFilters`), cada uno con un botón para agregarlo/quitarlo del
+> recorrido en construcción — misma acción que tocarlo en el mapa, ambas
+> conviven. Además de la duración total, el panel ahora muestra la
+> **distancia total estimada** (ej. "1.1 km"), sumando la distancia de cada
+> tramo de caminata. Migración 018: `poi_walk_times.distance_meters`
+> (nullable — la caché de HU-2.5 ya recibía la distancia en la misma
+> respuesta de OSRM que usaba para la duración, solo faltaba guardarla);
+> filas viejas sin ese dato se estiman con Haversine al leerlas, sin romper
+> la caché existente. `routing.js#walkTimeMatrix` y
+> `RouteTemplate.js#totalMinutesFor` (renombrada `routeStatsFor`, ahora
+> devuelve `{minutes, distanceMeters}`) actualizados; el endpoint `/preview`
+> devuelve `total_distance_meters` junto a `total_minutes`.
+
 - Un botón "🧭 Armar recorrido" en el Mapa activa un modo de selección: tocar
-  un POI en su popup (`➕ Agregar al recorrido`) lo agrega, en orden, a un
+  un POI en su popup (`➕ Agregar al recorrido`), o tocarlo en la lista de
+  "Lugares visibles en el mapa" del panel lateral, lo agrega, en orden, a un
   panel lateral (`RouteBuilderPanel.jsx`).
 - El panel permite reordenar arrastrando (drag & drop nativo HTML5, sin
-  librería nueva) y muestra la **duración total estimada en vivo**
-  (`POST /api/trips/:tripId/route-templates/preview`), recalculada en cada
-  cambio: suma de `estimated_duration_minutes` por POI (o un default por
-  categoría si no está cargado: cultura=90, gastronomía=60,
+  librería nueva) y muestra la **duración total estimada** y la **distancia
+  total estimada**, ambas en vivo
+  (`POST /api/trips/:tripId/route-templates/preview`), recalculadas en cada
+  cambio: la duración suma `estimated_duration_minutes` por POI (o un
+  default por categoría si no está cargado: cultura=90, gastronomía=60,
   naturaleza=60, atracción=60, estación=15, alojamiento=0, otro=30) +
-  tiempos de caminata entre paradas consecutivas (OSRM, vía `routing.js`).
+  tiempos de caminata entre paradas consecutivas (OSRM, vía `routing.js`); la
+  distancia suma la distancia de esos mismos tramos.
 - "Guardar recorrido" (`POST /api/trips/:tripId/route-templates`) lo asocia al
   viaje con nombre + secuencia de POIs. Editar/eliminar (`PUT`/`DELETE
   /api/route-templates/:id`) reemplazan la secuencia de stops por completo,

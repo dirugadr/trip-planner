@@ -766,6 +766,24 @@ vive en el panel derecho de Itinerario:
 > supera 5 minutos, el texto pasa de "xx min a pie hacia zzzz" a "xx min a
 > pie (y.y km) hacia zzzz".
 
+> **Fix — conector/mapa desalineados tras editar una actividad ✅**
+> *(2026-09-17)*: `routeViews` (`TripDetailPage.jsx`) cachea el resultado de
+> `GET /days/:dayId/route-view` por día, pero nunca se invalidaba — se
+> pedía una sola vez, la primera vez que se veía ese día, y quedaba en
+> memoria el resto de la sesión. Crear, editar o borrar una actividad,
+> cambiar sus lugares asociados o aplicar "Sugerir recorrido" sí actualiza
+> la lista (`reload()`), pero el mapa/conectores seguían mostrando los
+> tramos calculados con el orden/las coordenadas de ANTES del cambio — el
+> conector de una actividad podía terminar mostrando el tramo hacia otra
+> actividad distinta a la que ahora tiene debajo en la lista. Se agregó
+> `invalidateRouteView(dayId)`, llamado junto con `reload()` en cada una de
+> esas mutaciones, así el próximo render vuelve a pedir el recorrido del
+> día en vez de reusar el viejo. Verificado en vivo: 3 actividades con
+> lugares reales (Sagrada Família → Park Güell → Camp Nou), edité el
+> horario de la primera para que pasara al final de la lista, y los
+> conectores se recalcularon con el par correcto (Güell→Camp Nou,
+> Camp Nou→Sagrada) en vez de quedarse con el tramo viejo Sagrada→Güell.
+
 ## Frontend v2 — reconstrucción visual y de navegación
 
 > No es una épica de negocio, sino un cambio transversal: reescritura

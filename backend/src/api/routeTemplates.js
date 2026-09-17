@@ -1,5 +1,5 @@
 import express from 'express';
-import { serverError } from '../lib/http.js';
+import { serverError, safeErrorMessage } from '../lib/http.js';
 import { anthropicConfigError } from '../config/index.js';
 import Trip from '../models/Trip.js';
 import Day from '../models/Day.js';
@@ -152,7 +152,7 @@ router.post('/trips/:tripId/route-templates/smart-order', async (req, res) => {
       pois: selected.map((p) => ({ poi_id: p.id, name: p.name, category: p.category_name })),
       walking_times_minutes: walking,
     }).catch((e) => {
-      res.status(e.status || 502).json({ success: false, error: e.message });
+      res.status(e.status || 502).json({ success: false, error: safeErrorMessage(e) });
       return null;
     });
     if (!proposal) return undefined;

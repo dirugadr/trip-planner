@@ -15,4 +15,18 @@ export function serverError(res, error) {
   res.status(500).json({ success: false, error: message });
 }
 
+/**
+ * Message for a `.catch()` on an AI-suggestion call, which — unlike a plain
+ * try/catch into serverError() — needs to keep a custom status code (502,
+ * 503) instead of always 500. Our own thrown errors there always carry
+ * `.status` and an already-safe Spanish message; anything else is
+ * unexpected and, like serverError(), gets logged but not shown to the
+ * client in production.
+ */
+export function safeErrorMessage(error) {
+  if (error?.status) return error.message;
+  console.error('Unhandled async error:', error);
+  return config.env === 'production' ? 'Error interno del servidor' : error?.message || 'Error';
+}
+
 export default serverError;

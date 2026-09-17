@@ -1,5 +1,5 @@
 import express from 'express';
-import { serverError } from '../lib/http.js';
+import { serverError, safeErrorMessage } from '../lib/http.js';
 import multer from 'multer';
 import { Readable } from 'stream';
 import Trip from '../models/Trip.js';
@@ -183,7 +183,7 @@ router.post('/trips/:tripId/pois/discover', async (req, res) => {
     const classified = await classifyDiscoveredPois({
       candidates: withIds.map((c) => ({ candidate_id: c.candidate_id, name: c.name, hint: c.hint })),
     }).catch((e) => {
-      res.status(e.status || 502).json({ success: false, error: e.message });
+      res.status(e.status || 502).json({ success: false, error: safeErrorMessage(e) });
       return null;
     });
     if (!classified) return undefined;

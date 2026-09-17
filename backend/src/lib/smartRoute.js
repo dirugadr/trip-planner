@@ -78,7 +78,8 @@ export async function proposeDayRoute(input) {
  */
 export function validateProposal(proposal, inputIds) {
   const inSet = new Set(inputIds);
-  const outIds = (proposal?.suggested_order || []).map((s) => s.activity_id);
+  const suggestedOrder = Array.isArray(proposal?.suggested_order) ? proposal.suggested_order : [];
+  const outIds = suggestedOrder.map((s) => s.activity_id);
   const outSet = new Set(outIds);
   const ok =
     outIds.length === inSet.size &&
@@ -163,7 +164,7 @@ export async function proposePoiOrder(input) {
 /** Same guard as validateProposal(), but over ordered_poi_ids / poi_id. */
 export function validatePoiOrderProposal(proposal, inputIds) {
   const inSet = new Set(inputIds);
-  const outIds = proposal?.ordered_poi_ids || [];
+  const outIds = Array.isArray(proposal?.ordered_poi_ids) ? proposal.ordered_poi_ids : [];
   const outSet = new Set(outIds);
   const ok =
     outIds.length === inSet.size &&

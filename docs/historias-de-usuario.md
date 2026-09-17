@@ -44,6 +44,19 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - El sistema DEBE mostrar la duración total de actividades por día.
 - El sistema DEBE mostrar un resumen: cantidad de días, actividades y (si hay) presupuesto y gasto acumulado.
 
+> **Ajuste — orden por horario, siempre ✅** *(2026-09-17)*: el orden real en
+> `Activity.js`/`Day.getActivities` usaba `sort_order` (orden de inserción)
+> como criterio primario y `start_time` solo para desempatar — al revés de
+> lo que dice esta historia y HU-1.10. Una actividad nueva u editada con un
+> horario intermedio se creaba/actualizaba con el `sort_order` más alto, así
+> que quedaba al final de la lista hasta que alguien la subiera a mano con
+> ↑/↓. Se invirtió el `ORDER BY` a `(start_time IS NULL) ASC, start_time
+> ASC, sort_order ASC`: ahora manda siempre la hora; `sort_order` solo
+> desempata horarios iguales (o dos actividades sin hora, que es para lo que
+> HU-1.10 lo pensó desde el principio). El frontend no necesitó cambios —
+> ya recargaba el viaje entero (`reload()`, sin refrescar la página) después
+> de crear/editar una actividad.
+
 ### HU-1.4 — Editar un viaje ✅
 **Como** viajero, **quiero** editar nombre, fechas, descripción y presupuesto, **para** ajustar el plan.
 
@@ -91,6 +104,14 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 
 - El sistema DEBE permitir subir o bajar una actividad en la lista de su día (botones ↑/↓).
 - El orden manual (`sort_order`) DEBE persistir y usarse como criterio de orden (junto con la hora).
+
+> **Ajuste — ↑/↓ solo cuando realmente reordenan ✅** *(2026-09-17)*: desde
+> que el orden pasó a mandar siempre por horario (ver HU-1.3), mover una
+> actividad contra un vecino con **otra** hora ya no cambia nada visible —
+> el `sort_order` se swapea pero el siguiente sort por hora lo deshace. Los
+> botones ↑/↓ ahora se deshabilitan contra ese vecino (se habilitan solo si
+> el vecino tiene la misma hora que la actividad, incluyendo "ambas sin
+> hora"), en vez de quedar clickeables sin hacer nada visible.
 
 ### HU-1.11 — Marcar una actividad como hecha ✅
 **Como** viajero, **quiero** tildar actividades completadas, **para** seguir el progreso durante el viaje.
@@ -734,6 +755,16 @@ vive en el panel derecho de Itinerario:
   asociado en un popup.
 - Sin controles de edición de ningún tipo — a diferencia de HU-2.5/HU-2.6, el
   mapa no permite reordenar, editar ni aplicar cambios.
+
+> **Ajuste — distancia en el conector "X min a pie" ✅** *(2026-09-17)*: el
+> conector entre actividades consecutivas del Itinerario (`TripDetailPage.jsx`,
+> no el mapa) ya calculaba `km` en el cliente a partir de la misma geometría
+> de `GET /days/:dayId/route-view` que usa este mapa (`totalDistanceKm` sobre
+> el segmento, `utils/geo.js`) — no hizo falta tocar el backend ni
+> `poi_walk_times`/`distance_meters` (esa caché es de otro flujo: HU-2.5/2.6,
+> Sugerir recorrido y recorridos armados, no este conector). Cuando el tramo
+> supera 5 minutos, el texto pasa de "xx min a pie hacia zzzz" a "xx min a
+> pie (y.y km) hacia zzzz".
 
 ## Frontend v2 — reconstrucción visual y de navegación
 

@@ -320,6 +320,13 @@ export default function TripDetailPage() {
                   const primaryPoi = activity.pois?.[0];
                   const walk = walkAfter.get(activity.id);
                   const isLast = idx === activeDay.activities.length - 1;
+                  // The list is sorted by start_time first, so "mover" only has a
+                  // visible effect against a neighbor with the same start_time
+                  // (both unset counts as "same") — otherwise the swap is undone
+                  // by the sort on the next render.
+                  const sameSlot = (a, b) => (a?.start_time || null) === (b?.start_time || null);
+                  const canMoveUp = idx > 0 && sameSlot(activity, activeDay.activities[idx - 1]);
+                  const canMoveDown = !isLast && sameSlot(activity, activeDay.activities[idx + 1]);
                   return (
                     <div className="flex gap-4" key={activity.id}>
                       <div className="flex flex-col items-center">
@@ -412,7 +419,7 @@ export default function TripDetailPage() {
                             </button>
                             <button
                               className="btn-icon msi text-[16px] text-on-surface-variant"
-                              disabled={idx === 0 || busyActivityId === activity.id}
+                              disabled={!canMoveUp || busyActivityId === activity.id}
                               onClick={() => handleMove(activity, 'up')}
                               aria-label="Subir"
                             >
@@ -420,7 +427,7 @@ export default function TripDetailPage() {
                             </button>
                             <button
                               className="btn-icon msi text-[16px] text-on-surface-variant"
-                              disabled={isLast || busyActivityId === activity.id}
+                              disabled={!canMoveDown || busyActivityId === activity.id}
                               onClick={() => handleMove(activity, 'down')}
                               aria-label="Bajar"
                             >
@@ -441,7 +448,7 @@ export default function TripDetailPage() {
                         {walk && (
                           <div className="flex items-center gap-1.5 text-[12px] text-on-surface-variant mt-2 ml-1">
                             <span className="msi text-[14px]">directions_walk</span>
-                            {walk.minutes} min a pie hacia {walk.toTitle}
+                            {walk.minutes} min a pie{walk.minutes > 5 && ` (${walk.km.toFixed(1)} km)`} hacia {walk.toTitle}
                           </div>
                         )}
                       </div>

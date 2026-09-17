@@ -2,7 +2,11 @@ import { randomUUID } from 'crypto';
 import { insertOne, updateOne, deleteOne, findById, dbGet, dbRun, dbAll } from '../db/database.js';
 
 const TABLE = 'activities';
-const ORDER = 'ORDER BY sort_order ASC, start_time ASC';
+// Ajuste itinerario: start_time is the primary sort key so the list always
+// reflects the actual schedule (a new/edited activity lands at its time slot
+// without a manual move). sort_order only breaks ties — same start_time, or
+// both unset — which is what the up/down "mover" buttons actually reorder.
+const ORDER = 'ORDER BY (start_time IS NULL) ASC, start_time ASC, sort_order ASC';
 
 // Columns a caller may set via update(). `day_id` is included because the
 // accommodation sync moves check-in/out activities between days. Server-managed

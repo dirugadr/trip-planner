@@ -50,7 +50,8 @@ export class Day {
   }
 
   static getActivities(dayId) {
-    const sql = `SELECT * FROM activities WHERE day_id = ? AND deleted_at IS NULL ORDER BY sort_order ASC, start_time ASC`;
+    // Kept in sync with Activity.js's own ORDER constant — see its comment.
+    const sql = `SELECT * FROM activities WHERE day_id = ? AND deleted_at IS NULL ORDER BY (start_time IS NULL) ASC, start_time ASC, sort_order ASC`;
     return dbAll(sql, [dayId]);
   }
 

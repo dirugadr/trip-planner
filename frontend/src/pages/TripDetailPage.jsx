@@ -75,6 +75,19 @@ export default function TripDetailPage() {
 
   const [activeDayId, setActiveDayId] = useState(null);
   const [routeViews, setRouteViews] = useState({}); // dayId -> { stops, segments } | 'loading'
+  // Drop a day's cached route-view so the lazy-fetch effect below refetches it —
+  // it's keyed by activity_id but computed from a specific stop order/coordinate
+  // set, so any change to that day's activities (schedule, POIs, add/remove/
+  // reorder) leaves it stale: same connector text, now pointing at the wrong pair.
+  const invalidateRouteView = (dayId) => {
+    if (!dayId) return;
+    setRouteViews((rv) => {
+      if (!(dayId in rv)) return rv;
+      const next = { ...rv };
+      delete next[dayId];
+      return next;
+    });
+  };
   const [editingTrip, setEditingTrip] = useState(false);
   const [dayModal, setDayModal] = useState(null);
   const [activityModal, setActivityModal] = useState(null); // { dayId, activity? }
@@ -140,6 +153,7 @@ export default function TripDetailPage() {
     try {
       await fn();
       reload();
+      invalidateRouteView(activeDay?.id);
     } catch (err) {
       setActionError(err.message);
     }
@@ -179,6 +193,7 @@ export default function TripDetailPage() {
     }
     setActivityModal(null);
     reload();
+    invalidateRouteView(activityModal.dayId);
   };
 
   const handleDeleteActivity = async (activity) => {
@@ -513,10 +528,27 @@ export default function TripDetailPage() {
       )}
 
       {poisModal && (
-        <ActivityPoisModal activity={poisModal} tripId={id} onChanged={reload} onClose={() => setPoisModal(null)} />
+        <ActivityPoisModal
+          activity={poisModal}
+          tripId={id}
+          onChanged={() => {
+            reload();
+            invalidateRouteView(poisModal?.day_id);
+          }}
+          onClose={() => setPoisModal(null)}
+        />
       )}
 
-      {smartRouteDay && <SmartRouteModal day={smartRouteDay} onApplied={reload} onClose={() => setSmartRouteDay(null)} />}
+      {smartRouteDay && (
+        <SmartRouteModal
+          day={smartRouteDay}
+          onApplied={() => {
+            reload();
+            invalidateRouteView(smartRouteDay.id);
+          }}
+          onClose={() => setSmartRouteDay(null)}
+        />
+      )}
     </div>
   );
 }

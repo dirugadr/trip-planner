@@ -234,14 +234,26 @@ router.get('/:dayId/route-view', async (req, res) => {
       activity_id: x.activity.id,
       activity_name: x.activity.title,
       poi_name: x.poi.name,
+      poi_category: x.poi.category_name,
       lat: Number(x.poi.latitude),
       lng: Number(x.poi.longitude),
     }));
 
+    // Two consecutive stops that are both "estación" (train/metro) aren't
+    // walked between — the traveler takes transit — so there's no walking
+    // geometry to fetch and the leg shouldn't count as a caminata.
+    const isStation = (s) => s.poi_category?.toLowerCase() === 'estación';
+
     const segments = [];
     for (let i = 0; i < stops.length - 1; i++) {
-      const geometry = await fetchRouteGeometry(stops[i], stops[i + 1]);
-      segments.push({ from: stops[i].sequence_number, to: stops[i + 1].sequence_number, ...geometry });
+      const from = stops[i];
+      const to = stops[i + 1];
+      if (isStation(from) && isStation(to)) {
+        segments.push({ from: from.sequence_number, to: to.sequence_number, no_walk: true, coordinates: [], source: 'no_walk' });
+        continue;
+      }
+      const geometry = await fetchRouteGeometry(from, to);
+      segments.push({ from: from.sequence_number, to: to.sequence_number, ...geometry });
     }
 
     res.json({

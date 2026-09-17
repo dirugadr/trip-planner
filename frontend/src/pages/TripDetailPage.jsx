@@ -122,7 +122,7 @@ export default function TripDetailPage() {
   const conflicts = useMemo(() => (activeDay ? findScheduleConflicts(activeDay.activities) : []), [activeDay]);
 
   const walkAfter = useMemo(() => {
-    // activity_id -> { km, minutes, toTitle } for the leg to the *next* stop.
+    // activity_id -> { noWalk, km, minutes, toTitle } for the leg to the *next* stop.
     const map = new Map();
     if (!activeRouteView || activeRouteView === 'loading') return map;
     const { stops, segments } = activeRouteView;
@@ -130,6 +130,10 @@ export default function TripDetailPage() {
       const from = stops.find((s) => s.sequence_number === seg.from);
       const to = stops.find((s) => s.sequence_number === seg.to);
       if (!from || !to) continue;
+      if (seg.no_walk) {
+        map.set(from.activity_id, { noWalk: true, toTitle: to.activity_name });
+        continue;
+      }
       const km = totalDistanceKm([seg]);
       map.set(from.activity_id, { km, minutes: walkMinutesForKm(km), toTitle: to.activity_name });
     }
@@ -462,8 +466,10 @@ export default function TripDetailPage() {
                         </div>
                         {walk && (
                           <div className="flex items-center gap-1.5 text-[12px] text-on-surface-variant mt-2 ml-1">
-                            <span className="msi text-[14px]">directions_walk</span>
-                            {walk.minutes} min a pie{walk.minutes > 5 && ` (${walk.km.toFixed(1)} km)`} hacia {walk.toTitle}
+                            <span className="msi text-[14px]">{walk.noWalk ? 'train' : 'directions_walk'}</span>
+                            {walk.noWalk
+                              ? 'sin recorrido a pie'
+                              : <>{walk.minutes} min a pie{walk.minutes > 5 && ` (${walk.km.toFixed(1)} km)`} hacia {walk.toTitle}</>}
                           </div>
                         )}
                       </div>

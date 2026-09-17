@@ -784,6 +784,25 @@ vive en el panel derecho de Itinerario:
 > conectores se recalcularon con el par correcto (Güell→Camp Nou,
 > Camp Nou→Sagrada) en vez de quedarse con el tramo viejo Sagrada→Güell.
 
+> **Ajuste — sin recorrido a pie entre dos "Estación" consecutivas ✅**
+> *(2026-09-17)*: cuando dos paradas consecutivas del día son ambas de
+> categoría "Estación" (POI de tren/metro), el viajero no camina ese tramo
+> — lo hace en transporte — así que `GET /days/:dayId/route-view` ya no le
+> pide geometría a OSRM para ese par: el segmento sale marcado
+> `no_walk: true` con `coordinates: []`. Cada parada del payload ahora
+> también lleva `poi_category`, para que el backend distinga este caso. En
+> el Itinerario el conector muestra "sin recorrido a pie" en vez de "xx min
+> a pie hacia zzzz", y como `totalDistanceKm`/`walkMinutesForKm`
+> (`utils/geo.js`) ya sumaban sobre las coordenadas de cada segmento, un
+> `coordinates: []` no aporta nada a "Caminata total" ni a "Tiempo en
+> tránsito" sin tocar esas funciones. En el mapa, el tramo sin caminata
+> simplemente no dibuja línea entre esas dos paradas (`DayRouteMap.jsx`
+> filtra los segmentos sin coordenadas antes de trazar). Verificado en
+> vivo: Estación → Estación → Cultura (Sants → Passeig de Gràcia → Casa
+> Batlló) — el primer conector mostró "sin recorrido a pie" y no se sumó a
+> los totales; el segundo tramo (caminata real) sí se calculó y sumó con
+> normalidad.
+
 ## Frontend v2 — reconstrucción visual y de navegación
 
 > No es una épica de negocio, sino un cambio transversal: reescritura

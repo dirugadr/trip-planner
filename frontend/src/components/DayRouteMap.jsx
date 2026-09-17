@@ -52,18 +52,20 @@ export default function DayRouteMap({ stops, segments }) {
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBounds points={points} />
-        {segments.map((seg, i) => (
-          <Polyline
-            key={i}
-            positions={seg.coordinates}
-            pathOptions={{
-              color: '#0051d5',
-              weight: 4,
-              opacity: seg.source === 'osrm' ? 0.8 : 0.6,
-              dashArray: seg.source === 'osrm' ? undefined : '8 8',
-            }}
-          />
-        ))}
+        {segments
+          .filter((seg) => seg.coordinates?.length > 0)
+          .map((seg, i) => (
+            <Polyline
+              key={i}
+              positions={seg.coordinates}
+              pathOptions={{
+                color: '#0051d5',
+                weight: 4,
+                opacity: seg.source === 'osrm' ? 0.8 : 0.6,
+                dashArray: seg.source === 'osrm' ? undefined : '8 8',
+              }}
+            />
+          ))}
         {stops.map((s) => (
           <Marker key={s.activity_id} position={[s.lat, s.lng]} icon={numberedIcon(s.sequence_number)}>
             <Popup>

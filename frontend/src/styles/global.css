@@ -162,6 +162,12 @@
   .alert-warning::before {
     content: 'warning';
   }
+  .alert-info {
+    @apply bg-surface-container-low text-secondary;
+  }
+  .alert-info::before {
+    content: 'info';
+  }
 
   /* Autocomplete dropdown (address search) */
   .poi-results {

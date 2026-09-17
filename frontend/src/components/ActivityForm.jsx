@@ -7,6 +7,7 @@ const empty = {
   duration_minutes: '',
   url: '',
   tentative: false,
+  is_fixed: false,
 };
 
 export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submitLabel = 'Guardar' }) {
@@ -36,6 +37,7 @@ export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submi
       duration_minutes: form.duration_minutes === '' ? null : Number(form.duration_minutes),
       url: form.url.trim() || null,
       tentative: form.tentative ? 1 : 0,
+      is_fixed: form.is_fixed ? 1 : 0,
     };
 
     setSaving(true);
@@ -94,6 +96,11 @@ export default function ActivityForm({ dayId, initial, onSubmit, onCancel, submi
         <span>Tentativa — plan sin confirmar (no cuenta para los conflictos de horario)</span>
       </label>
 
+      <label className="checkbox-field">
+        <input type="checkbox" checked={form.is_fixed} onChange={setChecked('is_fixed')} />
+        <span>Inamovible — horario fijo que no debe correrse (ej. entrada con horario asignado)</span>
+      </label>
+
       <div className="row-between" style={{ marginTop: '1.25rem', justifyContent: 'flex-end' }}>
         <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
           Cancelar
@@ -115,5 +122,6 @@ function pickFields(activity) {
     duration_minutes: activity.duration_minutes ?? '',
     url: activity.url ?? '',
     tentative: !!activity.tentative,
+    is_fixed: !!activity.is_fixed,
   };
 }

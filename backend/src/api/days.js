@@ -2,7 +2,7 @@ import express from 'express';
 import { serverError, safeErrorMessage } from '../lib/http.js';
 import { anthropicConfigError } from '../config/index.js';
 import Day from '../models/Day.js';
-import { parseHM, findScheduleConflicts } from '../models/Activity.js';
+import { parseHM, minutesToHM, findScheduleConflicts } from '../models/Activity.js';
 import ActivityPoi from '../models/ActivityPoi.js';
 import { dbBatch } from '../db/database.js';
 import { walkTimeMatrix, fetchRouteGeometry } from '../lib/routing.js';
@@ -229,8 +229,14 @@ router.get('/:dayId/route-view', async (req, res) => {
       return ta - tb;
     });
 
-    const stops = ordered.map((x, i) => ({
-      sequence_number: i + 1,
+    // Marker numbers match the activity's own position in the day's full
+    // list (same order the Itinerario list badges use), not a renumbering
+    // restricted to the activities that happen to have a POI — so if
+    // activity 3 has no POI, activity 4 still shows "4" on the map.
+    const positionByActivityId = new Map(allActivities.map((a, i) => [a.id, i + 1]));
+
+    const stops = ordered.map((x) => ({
+      sequence_number: positionByActivityId.get(x.activity.id),
       activity_id: x.activity.id,
       activity_name: x.activity.title,
       poi_name: x.poi.name,
@@ -268,10 +274,5 @@ router.get('/:dayId/route-view', async (req, res) => {
     serverError(res, error);
   }
 });
-
-function minutesToHM(mins) {
-  const m = ((mins % 1440) + 1440) % 1440;
-  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-}
 
 export default router;

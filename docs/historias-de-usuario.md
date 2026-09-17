@@ -44,6 +44,19 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - El sistema DEBE mostrar la duración total de actividades por día.
 - El sistema DEBE mostrar un resumen: cantidad de días, actividades y (si hay) presupuesto y gasto acumulado.
 
+> **Ajuste — recordar el último día visto ✅** *(2026-09-17)*: al volver a
+> abrir la solapa Itinerario de un viaje, el sistema ubica al viajero
+> directamente en el último día que estuvo viendo, en vez de recalcular
+> siempre "el próximo día que no pasó todavía". Se guarda en
+> `trips.last_viewed_day_id` (columna nueva, no en `localStorage`), así
+> persiste entre dispositivos/navegadores. `PUT
+> /api/trips/:tripId/last-viewed-day` (valida que el día sea de ese viaje)
+> se llama cada vez que el viajero cambia de "pill" de día; si el viaje no
+> tiene ninguno guardado todavía, o el día guardado ya no es válido (viaje
+> nuevo, día eliminado), se usa el criterio de siempre (el próximo día que
+> no pasó, o el último si el viaje ya terminó) y ese pasa a guardarse como
+> el nuevo último visto.
+
 > **Ajuste — orden por horario, siempre ✅** *(2026-09-17)*: el orden real en
 > `Activity.js`/`Day.getActivities` usaba `sort_order` (orden de inserción)
 > como criterio primario y `start_time` solo para desempatar — al revés de
@@ -93,6 +106,28 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - CUANDO una actividad con hora y duración se solapa con otra del mismo día, el sistema DEBE avisar y no guardar.
 - AL editar una actividad, el sistema NO DEBE considerarla en conflicto consigo misma.
 
+> **Ajuste — resolver el conflicto desplazando horarios en cadena ✅**
+> *(2026-09-17)*: al crear/editar una actividad manualmente, un solapamiento
+> ya no bloquea siempre — primero se intenta resolver corriendo en cadena
+> las actividades **siguientes** del día, cada una lo mínimo necesario para
+> no pisar a la anterior ya reubicada, y solo si eso alcanza para eliminar
+> el solapamiento por completo se aplica, junto con la actividad
+> guardada, en una única transacción (`Activity.resolveScheduleShift`,
+> `backend/src/models/Activity.js` — el único lugar que valida conflictos
+> para creación/edición manual, reusado por `POST`/`PUT /api/activities`;
+> HU-2.5/HU-2.6 conservan su propio manejo "todo o nada", sin tocar). Sigue
+> bloqueando igual que antes (mensaje de conflicto, nada se guarda) cuando:
+> el solapamiento es con una actividad que empieza **antes** (no hay nada
+> que correr hacia adelante ahí), o cuando la cadena de corrimiento
+> necesitaría mover una actividad marcada como inamovible (HU-1.14). El
+> frontend muestra "Se ajustaron los horarios de N actividades para evitar
+> superposición" cuando el guardado disparó corrimientos. Verificado en
+> vivo: una actividad nueva que empuja a 2 siguientes en cadena; una edición
+> de duración que empuja a 3; un solapamiento contra una actividad
+> inamovible bloqueado sin tocar nada; y una cadena que, de aplicarse,
+> llegaría a mover la inamovible — también bloqueada, verificando que no
+> quedó ningún corrimiento parcial aplicado.
+
 ### HU-1.9 — Editar título y notas de un día ✅
 **Como** viajero, **quiero** poner un título y notas a cada día (ej. "Día de museos"), **para** organizar mejor.
 
@@ -133,6 +168,14 @@ Los criterios de aceptación usan estilo EARS (*el sistema DEBE…*).
 - El sistema DEBE mostrar las actividades tentativas de forma distinta (itálica + "· tentativa").
 - Una actividad tentativa NO cuenta para la detección de conflictos de horario
   (ni bloquea, ni es bloqueada).
+
+### HU-1.14 — Actividad inamovible ✅ *(2026-09-17)*
+**Como** viajero, **quiero** marcar una actividad como "inamovible", **para** que el horario de una entrada u otro compromiso fijo nunca se corra solo.
+
+- El sistema DEBE permitir marcar una actividad como `is_fixed` al crearla o editarla (checkbox "Inamovible", junto a "Tentativa" en el formulario).
+- El sistema DEBE mostrar un ícono distintivo (candado) en la tarjeta de toda actividad marcada como inamovible.
+- El efecto real de esta marca es sobre el desplazamiento automático de
+  horarios de HU-1.8: una actividad inamovible nunca se mueve sola. *(ver HU-1.8)*
 
 ---
 
@@ -802,6 +845,19 @@ vive en el panel derecho de Itinerario:
 > Batlló) — el primer conector mostró "sin recorrido a pie" y no se sumó a
 > los totales; el segundo tramo (caminata real) sí se calculó y sumó con
 > normalidad.
+
+> **Ajuste — numeración del mapa alineada con la lista ✅** *(2026-09-17)*:
+> los marcadores numerados del mapa se renumeraban correlativamente solo
+> entre las actividades que tienen POI asociado — si la actividad 3 de la
+> lista no tenía lugar, la 4 pasaba a mostrarse como "3" en el mapa,
+> desalineada con su propio número en la lista de la izquierda.
+> `GET /days/:dayId/route-view` ahora calcula la posición de cada parada
+> sobre la lista completa y ordenada del día (`Day.getActivities`, la misma
+> que usan los badges numerados de la lista), no sobre el subconjunto con
+> POI — así que puede haber huecos en la numeración del mapa (1, luego 4)
+> en vez de una secuencia sin huecos que no coincide con la lista.
+> Verificado en vivo: día con actividad 2 sin POI y actividad 3 con POI — el
+> marcador de la actividad 3 mostró "3", no se corrió a "2".
 
 ## Frontend v2 — reconstrucción visual y de navegación
 

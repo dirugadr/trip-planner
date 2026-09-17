@@ -12,7 +12,7 @@ const router = express.Router();
 // POST /api/activities - Create activity
 router.post('/', async (req, res) => {
   try {
-    const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, tentative } = req.body;
+    const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, tentative, is_fixed } = req.body;
 
     if (!day_id || !title) {
       return res.status(400).json({
@@ -26,34 +26,35 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'El enlace debe empezar con http:// o https://' });
     }
 
-    // Tentative plans don't need to be conflict-free
+    // Tentative plans don't need to be conflict-free. A real conflict is
+    // first tried against resolveScheduleShift (Ajuste 4): resolved
+    // automatically by cascading later activities forward unless that would
+    // move an "inamovible" one, in which case it's the same hard block as before.
+    let shifts = [];
     if (!tentative && start_time && duration_minutes) {
-      const hasConflict = await Activity.checkTimeConflict(day_id, start_time, duration_minutes);
-      if (hasConflict) {
+      const resolved = await Activity.resolveScheduleShift(day_id, { startTime: start_time, durationMinutes: duration_minutes });
+      if (resolved.blocked) {
         return res.status(400).json({
           success: false,
           error: 'Time conflict: activity overlaps with existing activities',
           warning: true
         });
       }
+      shifts = resolved.shifts;
     }
 
-    const activity = await Activity.create({
-      day_id,
-      title,
-      description,
-      start_time,
-      duration_minutes,
-      location_name,
-      latitude,
-      longitude,
-      url,
-      tentative
-    });
+    const row = Activity.rowFor(
+      { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, url, tentative, is_fixed },
+      await Activity.nextSortOrder(day_id)
+    );
+    await dbBatch([
+      Activity.insertStmt(row),
+      ...shifts.map((s) => Activity.updateStmt(s.id, { start_time: s.start_time })),
+    ]);
 
     res.status(201).json({
       success: true,
-      data: activity
+      data: { ...row, ...(shifts.length > 0 && { shifted_count: shifts.length }) }
     });
   } catch (error) {
     serverError(res, error);
@@ -99,6 +100,7 @@ router.put('/:id', async (req, res) => {
     }
 
     if ('tentative' in req.body) req.body.tentative = req.body.tentative ? 1 : 0;
+    if ('is_fixed' in req.body) req.body.is_fixed = req.body.is_fixed ? 1 : 0;
     const isTentative = 'tentative' in req.body ? req.body.tentative : activity.tentative;
 
     if ('url' in req.body) {
@@ -109,25 +111,30 @@ router.put('/:id', async (req, res) => {
       req.body.url = clean;
     }
 
-    // Tentative plans don't need to be conflict-free
+    // Tentative plans don't need to be conflict-free. See the POST handler's
+    // comment above — same resolveScheduleShift-based resolution (Ajuste 4).
+    let shifts = [];
     if (!isTentative && req.body.start_time && req.body.duration_minutes) {
-      const hasConflict = await Activity.checkTimeConflict(
-        activity.day_id,
-        req.body.start_time,
-        req.body.duration_minutes,
-        activity.id
-      );
-      if (hasConflict) {
+      const resolved = await Activity.resolveScheduleShift(activity.day_id, {
+        startTime: req.body.start_time,
+        durationMinutes: req.body.duration_minutes,
+        excludeId: activity.id,
+      });
+      if (resolved.blocked) {
         return res.status(400).json({
           success: false,
           error: 'Time conflict: activity overlaps with existing activities',
           warning: true
         });
       }
+      shifts = resolved.shifts;
     }
 
-    const updated = await Activity.update(req.params.id, req.body);
-
+    await dbBatch([
+      Activity.updateStmt(req.params.id, req.body),
+      ...shifts.map((s) => Activity.updateStmt(s.id, { start_time: s.start_time })),
+    ]);
+    const updated = await Activity.findById(req.params.id);
     if (!updated) {
       return res.status(500).json({
         success: false,
@@ -137,7 +144,7 @@ router.put('/:id', async (req, res) => {
 
     res.json({
       success: true,
-      data: updated
+      data: { ...updated, ...(shifts.length > 0 && { shifted_count: shifts.length }) }
     });
   } catch (error) {
     serverError(res, error);

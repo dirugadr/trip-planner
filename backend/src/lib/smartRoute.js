@@ -5,12 +5,19 @@ const MODEL = 'claude-sonnet-5';
 
 const TOOL = {
   name: 'propose_day_route',
-  description: 'Propone un orden y horarios optimizados para visitar los POIs de un día de viaje.',
+  description:
+    'Propone un orden y horarios optimizados para las actividades de un día de viaje. ' +
+    'IMPORTANTE: suggested_order debe tener exactamente una entrada por cada actividad ' +
+    'recibida, aunque dos actividades compartan el mismo POI (p. ej. almorzar y cenar en ' +
+    'el mismo lugar) — nunca fusiones ni omitas actividades por compartir ubicación.',
   input_schema: {
     type: 'object',
     properties: {
       suggested_order: {
         type: 'array',
+        description:
+          'Una entrada por cada activity_id del input, sin excepción — el largo de este ' +
+          'array debe ser idéntico a la cantidad de actividades recibidas.',
         items: {
           type: 'object',
           properties: {
@@ -42,14 +49,16 @@ export async function proposeDayRoute(input) {
     'caminata reales entre paradas. Proponé el mejor orden de visita y un horario para ' +
     'cada parada, respetando los tiempos de caminata, los horarios ya fijados que tengan ' +
     'sentido, y las notas. Devolvé TODAS las actividades que te paso, ninguna de más ni ' +
-    'de menos, usando el activity_id exacto.\n\n' +
+    'de menos, usando el activity_id exacto. Si dos actividades comparten el mismo POI ' +
+    '(mismo lat/lng), son igual dos paradas separadas: no las fusiones en una sola entrada ' +
+    'de suggested_order.\n\n' +
     JSON.stringify(input, null, 2);
 
   let response;
   try {
     response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 1500,
+      max_tokens: 4096,
       tools: [TOOL],
       tool_choice: { type: 'tool', name: 'propose_day_route' },
       messages: [{ role: 'user', content: prompt }],
@@ -86,6 +95,13 @@ export function validateProposal(proposal, inputIds) {
     outSet.size === inSet.size &&
     [...inSet].every((id) => outSet.has(id));
   if (!ok) {
+    console.error('validateProposal mismatch:', {
+      expected: inSet.size,
+      got: outIds.length,
+      missing: [...inSet].filter((id) => !outSet.has(id)),
+      extra: [...outSet].filter((id) => !inSet.has(id)),
+      duplicated: outIds.length !== outSet.size,
+    });
     const e = new Error('La sugerencia de Claude no coincide con las actividades del día (IDs de más o de menos)');
     e.status = 502;
     throw e;
@@ -171,6 +187,13 @@ export function validatePoiOrderProposal(proposal, inputIds) {
     outSet.size === inSet.size &&
     [...inSet].every((id) => outSet.has(id));
   if (!ok) {
+    console.error('validatePoiOrderProposal mismatch:', {
+      expected: inSet.size,
+      got: outIds.length,
+      missing: [...inSet].filter((id) => !outSet.has(id)),
+      extra: [...outSet].filter((id) => !inSet.has(id)),
+      duplicated: outIds.length !== outSet.size,
+    });
     const e = new Error('La sugerencia de Claude no coincide con los lugares enviados (IDs de más o de menos)');
     e.status = 502;
     throw e;

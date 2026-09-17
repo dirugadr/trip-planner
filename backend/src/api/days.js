@@ -1,5 +1,5 @@
 import express from 'express';
-import { serverError } from '../lib/http.js';
+import { serverError, safeErrorMessage } from '../lib/http.js';
 import { anthropicConfigError } from '../config/index.js';
 import Day from '../models/Day.js';
 import { parseHM, findScheduleConflicts } from '../models/Activity.js';
@@ -99,7 +99,7 @@ router.post('/:dayId/smart-route', async (req, res) => {
     };
 
     const proposal = await proposeDayRoute(input).catch((e) => {
-      res.status(e.status || 502).json({ success: false, error: e.message });
+      res.status(e.status || 502).json({ success: false, error: safeErrorMessage(e) });
       return null;
     });
     if (!proposal) return undefined;

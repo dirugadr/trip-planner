@@ -217,6 +217,28 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PUT /api/trips/:tripId/last-viewed-day - Remember which day the traveler was
+// looking at in Itinerario, so re-entering the tab (any device) lands there.
+router.put('/:tripId/last-viewed-day', async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.tripId);
+    if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
+
+    const { day_id } = req.body;
+    if (!day_id) return res.status(400).json({ success: false, error: 'day_id es obligatorio' });
+
+    const day = await Day.findById(day_id);
+    if (!day || day.trip_id !== trip.id) {
+      return res.status(400).json({ success: false, error: 'El día no pertenece a este viaje' });
+    }
+
+    const updated = await Trip.update(trip.id, { last_viewed_day_id: day_id });
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    serverError(res, error);
+  }
+});
+
 // GET /api/trips/:id/budget - Budget summary: categories with allocated vs spent, plus totals
 router.get('/:id/budget', async (req, res) => {
   try {

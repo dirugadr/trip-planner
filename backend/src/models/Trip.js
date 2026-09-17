@@ -5,7 +5,7 @@ const TABLE = 'trips';
 
 // Columns a client may set via PUT /api/trips/:id. Everything else (id,
 // timestamps, version, deleted_at) is managed server-side — never mass-assigned.
-const EDITABLE = ['name', 'description', 'start_date', 'end_date', 'currency_code', 'total_budget', 'timezone'];
+const EDITABLE = ['name', 'description', 'start_date', 'end_date', 'currency_code', 'total_budget', 'timezone', 'last_viewed_day_id'];
 
 export class Trip {
   static async create(data) {

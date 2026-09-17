@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAsync } from '../hooks/useAsync.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
-import { getTrip, updateTrip, deleteTrip } from '../services/trips.js';
+import { getTrip, updateTrip, deleteTrip, setLastViewedDay } from '../services/trips.js';
 import { updateDay, getDayRouteView } from '../services/days.js';
 import { listPois } from '../services/pois.js';
 import { createActivity, updateActivity, deleteActivity, moveActivity } from '../services/activities.js';
@@ -94,16 +94,27 @@ export default function TripDetailPage() {
   const [poisModal, setPoisModal] = useState(null);
   const [smartRouteDay, setSmartRouteDay] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [actionNotice, setActionNotice] = useState(null);
   const [busyActivityId, setBusyActivityId] = useState(null);
   const [confirmNode, confirm] = useConfirm();
 
-  // Default to the first day that hasn't happened yet, or the last day if the
-  // whole trip is in the past.
+  // The traveler's last-viewed day for this trip (Ajuste itinerario), so
+  // re-entering the tab lands where they left off. Falls back to the first
+  // day that hasn't happened yet, or the last day if the trip is over.
+  const selectDay = (dayId) => {
+    setActiveDayId(dayId);
+    setLastViewedDay(trip.id, dayId).catch(() => {}); // best-effort, not worth blocking the UI
+  };
+
   useEffect(() => {
     if (!trip?.days?.length || activeDayId) return;
+    if (trip.last_viewed_day_id && trip.days.some((d) => d.id === trip.last_viewed_day_id)) {
+      setActiveDayId(trip.last_viewed_day_id);
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     const next = trip.days.find((d) => d.date >= today);
-    setActiveDayId((next || trip.days[trip.days.length - 1]).id);
+    selectDay((next || trip.days[trip.days.length - 1]).id);
   }, [trip, activeDayId]);
 
   const activeDay = trip?.days.find((d) => d.id === activeDayId) || null;
@@ -154,6 +165,7 @@ export default function TripDetailPage() {
 
   const run = async (fn) => {
     setActionError(null);
+    setActionNotice(null);
     try {
       await fn();
       reload();
@@ -190,12 +202,16 @@ export default function TripDetailPage() {
   };
 
   const handleActivitySubmit = async (payload) => {
-    if (activityModal.activity) {
-      await updateActivity(activityModal.activity.id, payload);
-    } else {
-      await createActivity(payload);
-    }
+    setActionNotice(null);
+    const saved = activityModal.activity
+      ? await updateActivity(activityModal.activity.id, payload)
+      : await createActivity(payload);
     setActivityModal(null);
+    setActionNotice(
+      saved.shifted_count > 0
+        ? `Se ajustaron los horarios de ${saved.shifted_count} actividad${saved.shifted_count === 1 ? '' : 'es'} para evitar superposición.`
+        : null
+    );
     reload();
     invalidateRouteView(activityModal.dayId);
   };
@@ -251,6 +267,7 @@ export default function TripDetailPage() {
       </div>
 
       {actionError && <ErrorMessage error={actionError} />}
+      {actionNotice && <div className="alert alert-info">{actionNotice}</div>}
 
       {/* Day pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-5 -mx-1 px-1">
@@ -261,7 +278,7 @@ export default function TripDetailPage() {
           return (
             <button
               key={day.id}
-              onClick={() => setActiveDayId(day.id)}
+              onClick={() => selectDay(day.id)}
               className={`flex flex-col text-left px-3 py-1.5 rounded-xl min-w-[130px] shrink-0 transition-colors ${
                 active ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface'
               }`}
@@ -393,6 +410,11 @@ export default function TripDetailPage() {
                                 </span>
                               )}
                               <span className="tag">{activity.tentative ? 'Tentativa' : 'Confirmada'}</span>
+                              {!!activity.is_fixed && (
+                                <span className="msi text-[14px] text-on-surface-variant" title="Inamovible">
+                                  lock
+                                </span>
+                              )}
                             </div>
                             {activity.expense && (
                               <span className="text-[13px] font-semibold shrink-0">

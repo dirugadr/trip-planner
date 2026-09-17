@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { insertOne, updateOne, deleteOne, findById, dbGet, dbRun, dbAll } from '../db/database.js';
+import { insertOne, deleteOne, findById, dbGet, dbRun, dbAll } from '../db/database.js';
 
 const TABLE = 'activities';
 // Ajuste itinerario: start_time is the primary sort key so the list always
@@ -14,7 +14,7 @@ const ORDER = 'ORDER BY (start_time IS NULL) ASC, start_time ASC, sort_order ASC
 const EDITABLE = [
   'day_id', 'title', 'description', 'start_time', 'duration_minutes',
   'location_name', 'latitude', 'longitude', 'url', 'completed', 'tentative',
-  'sort_order', 'accommodation_role',
+  'sort_order', 'accommodation_role', 'is_fixed',
 ];
 
 export class Activity {
@@ -33,6 +33,7 @@ export class Activity {
       url: data.url || null,
       completed: data.completed ? 1 : 0,
       tentative: data.tentative ? 1 : 0,
+      is_fixed: data.is_fixed ? 1 : 0,
       sort_order: sortOrder,
       accommodation_id: data.accommodation_id || null,
       accommodation_role: data.accommodation_role || null,
@@ -74,6 +75,7 @@ export class Activity {
       url: data.url || null,
       completed: data.completed ? 1 : 0,
       tentative: data.tentative ? 1 : 0,
+      is_fixed: data.is_fixed ? 1 : 0,
       sort_order: data.sort_order ?? nextSortOrder,
       accommodation_id: data.accommodation_id || null,
       accommodation_role: data.accommodation_role || null,
@@ -122,14 +124,23 @@ export class Activity {
     return dbAll(`SELECT * FROM ${TABLE} WHERE day_id = ? AND deleted_at IS NULL ${ORDER}`, [dayId]);
   }
 
-  static async update(id, data) {
+  /** UPDATE statement for update() — for use standalone or inside a dbBatch. */
+  static updateStmt(id, data) {
     const updates = { updated_at: new Date().toISOString(), version: (data.version || 0) + 1 };
     for (const key of EDITABLE) {
       if (key in data) updates[key] = data[key];
     }
+    const cols = Object.keys(updates);
+    return {
+      sql: `UPDATE ${TABLE} SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`,
+      args: [...Object.values(updates), id],
+    };
+  }
 
-    const success = await updateOne(TABLE, id, updates);
-    if (success) {
+  static async update(id, data) {
+    const stmt = Activity.updateStmt(id, data);
+    const result = await dbRun(stmt.sql, stmt.args);
+    if (result.changes > 0) {
       return Activity.findById(id);
     }
     return null;
@@ -165,15 +176,29 @@ export class Activity {
     return findById(TABLE, id);
   }
 
-  static async checkTimeConflict(dayId, startTime, durationMinutes, excludeId = null) {
-    if (!startTime || !durationMinutes) return false;
-
+  /**
+   * HU-1.8 conflict handling for a single manual create/edit — the one place
+   * reused by both POST/PUT /api/activities (never duplicate this in
+   * HU-2.5/HU-2.6's own "todo o nada" flows, which have their own logic).
+   *
+   * Tries to resolve an overlap by cascading the day's later activities
+   * forward in time, each pushed the minimum needed to clear the one before
+   * it. Refuses (same "blocked" outcome as the old plain conflict check) when:
+   *   - the overlap is with something that starts BEFORE the target — nothing
+   *     to push forward there, and the target's own time is the one the
+   *     traveler just typed, not something to move automatically; or
+   *   - resolving the chain would require moving an "inamovible" activity.
+   *
+   * @returns {Promise<{blocked:boolean, shifts:{id:string,start_time:string}[]}>}
+   */
+  static async resolveScheduleShift(dayId, { startTime, durationMinutes, excludeId = null }) {
+    if (!startTime || !durationMinutes) return { blocked: false, shifts: [] };
     const start = parseHM(startTime);
+    if (start == null) return { blocked: false, shifts: [] };
     const end = start + durationMinutes;
-    if (start == null) return false;
 
-    const others = await dbAll(
-      `SELECT * FROM ${TABLE}
+    const rows = await dbAll(
+      `SELECT id, start_time, duration_minutes, is_fixed FROM ${TABLE}
        WHERE day_id = ?
        AND deleted_at IS NULL
        AND tentative = 0
@@ -182,11 +207,30 @@ export class Activity {
        ${excludeId ? 'AND id != ?' : ''}`,
       excludeId ? [dayId, excludeId] : [dayId]
     );
+    const others = rows
+      .map((r) => ({ id: r.id, start: parseHM(r.start_time), duration: r.duration_minutes, isFixed: !!r.is_fixed }))
+      .filter((o) => o.start != null);
 
-    return others.some((a) => {
-      const oStart = parseHM(a.start_time);
-      return oStart != null && rangesOverlap(start, end, oStart, oStart + a.duration_minutes);
-    });
+    const blockedByEarlier = others.some(
+      (o) => o.start < start && rangesOverlap(start, end, o.start, o.start + o.duration)
+    );
+    if (blockedByEarlier) return { blocked: true, shifts: [] };
+
+    const later = others.filter((o) => o.start >= start).sort((a, b) => a.start - b.start);
+
+    let cursorEnd = end;
+    const shifts = [];
+    for (const o of later) {
+      if (o.start < cursorEnd) {
+        if (o.isFixed) return { blocked: true, shifts: [] };
+        shifts.push({ id: o.id, start_time: minutesToHM(cursorEnd) });
+        cursorEnd += o.duration;
+      } else {
+        cursorEnd = o.start + o.duration;
+      }
+    }
+
+    return { blocked: false, shifts };
   }
 
 }
@@ -198,6 +242,12 @@ export function parseHM(hm) {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
+/** minutes since midnight -> "HH:MM", wrapping into a 24h day. */
+export function minutesToHM(mins) {
+  const m = ((mins % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
 /** Half-open interval overlap: [aStart,aEnd) vs [bStart,bEnd). */
 export function rangesOverlap(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && aEnd > bStart;
@@ -205,8 +255,9 @@ export function rangesOverlap(aStart, aEnd, bStart, bEnd) {
 
 /**
  * Conflicts within a proposed schedule (HU-1.8 semantics: tentative plans and
- * items without a time+duration don't count). Shared by checkTimeConflict and
- * the smart-route apply step so the two never drift.
+ * items without a time+duration don't count). Used by the smart-route apply
+ * step (HU-2.5/2.6 have their own "todo o nada" handling, separate from
+ * resolveScheduleShift's automatic cascade for manual create/edit).
  *
  * @param {{id:string,title?:string,start_time:string,duration_minutes:number,tentative?:boolean|number}[]} items
  * @returns {{a:{id,title}, b:{id,title}}[]}

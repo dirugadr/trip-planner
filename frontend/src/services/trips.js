@@ -9,3 +9,6 @@ export const createTrip = (data) => apiPost('/trips', data);
 export const updateTrip = (id, data) => apiPut(`/trips/${id}`, data);
 
 export const deleteTrip = (id) => apiDelete(`/trips/${id}`);
+
+export const setLastViewedDay = (tripId, dayId) =>
+  apiPut(`/trips/${tripId}/last-viewed-day`, { day_id: dayId });

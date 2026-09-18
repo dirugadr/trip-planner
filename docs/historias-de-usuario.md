@@ -859,6 +859,26 @@ vive en el panel derecho de Itinerario:
 > Verificado en vivo: día con actividad 2 sin POI y actividad 3 con POI — el
 > marcador de la actividad 3 mostró "3", no se corrió a "2".
 
+> **Ajuste — abrir el recorrido del día en Google Maps ✅** *(2026-09-18)*:
+> botón "Abrir en Google Maps" en el panel de mapa del split-view de
+> Itinerario, visible con el mismo umbral que ya usa el trazado interno
+> (2+ paradas con POI). Ajuste 100% frontend, sin tocar el backend — arma
+> la URL de Google Maps Directions (`https://www.google.com/maps/dir/
+> ?api=1&origin=...&destination=...&waypoints=...|...&travelmode=walking`,
+> `frontend/src/utils/googleMaps.js`) con los mismos `stops` (lat/lng, ya
+> en orden de horario) que devuelve `GET /days/:dayId/route-view` y que
+> alimentan el trazado Leaflet/OSRM existente — ese trazado no cambia, el
+> botón es una acción adicional. Al no usar API key, el esquema de URL de
+> Google Maps solo admite 10 puntos en total (origen + hasta 8 waypoints +
+> destino): con más de 10 paradas se recortan a las primeras 10 y aparece
+> un texto junto al botón avisando cuántas se incluyeron, en vez de mandar
+> una URL que Google Maps podría rechazar. No se agregó al panel "Armar
+> recorrido" de Mapa & Lugares (HU-2.6), que queda sin cambios. Verificado
+> en vivo: día de 3 paradas → URL con origen/destino/1 waypoint en el orden
+> correcto del itinerario; día de 12 paradas → aviso "Solo se incluyen las
+> primeras 10 paradas" y URL recortada exactamente en la 10ª (confirmado
+> inspeccionando los parámetros de la URL armada).
+
 ## Frontend v2 — reconstrucción visual y de navegación
 
 > No es una épica de negocio, sino un cambio transversal: reescritura

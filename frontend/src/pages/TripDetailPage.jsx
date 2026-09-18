@@ -19,6 +19,7 @@ import { fileIcon } from '../utils/fileTypes.js';
 import { safeUrl } from '../utils/safeUrl.js';
 import { findScheduleConflicts } from '../utils/scheduleConflicts.js';
 import { totalDistanceKm, walkMinutesForKm } from '../utils/geo.js';
+import { buildWalkingDirectionsUrl } from '../utils/googleMaps.js';
 import Spinner from '../components/Spinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import Modal from '../components/Modal.jsx';
@@ -50,6 +51,7 @@ function DayMapPanel({ day, routeView, pois }) {
       );
     }
     if (routeView && routeView.stops?.length > 0) {
+      const directions = buildWalkingDirectionsUrl(routeView.stops);
       return (
         <>
           {routeView.activities_without_poi_count > 0 && (
@@ -57,6 +59,23 @@ function DayMapPanel({ day, routeView, pois }) {
               {routeView.activities_without_poi_count === 1
                 ? '1 actividad no tiene lugar asociado y no aparece en el mapa.'
                 : `${routeView.activities_without_poi_count} actividades no tienen lugar asociado y no aparecen en el mapa.`}
+            </div>
+          )}
+          {directions && (
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => window.open(directions.url, '_blank', 'noopener,noreferrer')}
+              >
+                <span className="msi text-[16px]">map</span>
+                Abrir en Google Maps
+              </button>
+              {directions.truncated && (
+                <span className="text-[12px] text-on-surface-variant">
+                  Solo se incluyen las primeras {directions.includedCount} paradas.
+                </span>
+              )}
             </div>
           )}
           <DayRouteMap stops={routeView.stops} segments={routeView.segments} />

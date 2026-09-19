@@ -83,6 +83,21 @@ export const config = {
     )
       .split(',')
       .map((s) => s.trim())
+      .filter(Boolean),
+    // Redirect URIs a dynamically registered client (HU-12.4) may ask for.
+    // Exact URIs, plus a trailing `/*` meaning "exactly one more path segment"
+    // (ChatGPT's per-connection callback). Anything else is refused.
+    registrableRedirectUris: (
+      process.env.MCP_DCR_REDIRECT_URIS_TP ||
+      [
+        'https://chatgpt.com/connector_platform_oauth_redirect',
+        'https://chatgpt.com/connector/oauth/*',
+        'https://claude.ai/api/mcp/auth_callback',
+        'https://claude.com/api/mcp/auth_callback'
+      ].join(',')
+    )
+      .split(',')
+      .map((s) => s.trim())
       .filter(Boolean)
   },
 

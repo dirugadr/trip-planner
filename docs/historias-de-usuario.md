@@ -900,8 +900,9 @@ vive en el panel derecho de Itinerario:
 > ese concepto.
 >
 > Piezas: `backend/src/mcp/` (`oauthProvider.js`, `authorizeComplete.js`,
-> `tools.js`, `router.js`), migración `021_mcp_oauth.sql`, pantalla
-> `/autorizar-claude` (`AutorizarClaudePage.jsx`). Usa `@modelcontextprotocol/sdk`
+> `tools.js`, `router.js`), migraciones `021_mcp_oauth.sql` y
+> `022_mcp_oauth_clients.sql`, pantalla `/autorizar`
+> (`AutorizarConexionPage.jsx`). Usa `@modelcontextprotocol/sdk`
 > (handlers de PKCE/metadata/bearer del SDK oficial sobre un proveedor propio en
 > Turso) y transporte **Streamable HTTP stateless** (un servidor+transporte por
 > request, respuestas JSON, sin sesión — encaja con las funciones serverless).
@@ -915,7 +916,8 @@ vive en el panel derecho de Itinerario:
   `401` de `/mcp` lleva `WWW-Authenticate: Bearer resource_metadata=…`).
 - `GET /oauth/authorize` DEBE validar `client_id`, `redirect_uri` (contra la lista
   registrada), PKCE `S256`, `scope` y `resource`, y redirigir a la pantalla de
-  consentimiento `/autorizar-claude`. Un `client_id` o `redirect_uri` inválido se
+  consentimiento `/autorizar` (antes `/autorizar-claude`, que sigue funcionando como
+  alias — ver HU-12.4). Un `client_id` o `redirect_uri` inválido se
   responde con `400` **sin** redirigir; el resto de los errores vuelven al
   `redirect_uri` registrado.
 - La pantalla de consentimiento DEBE pedir el mismo Google Sign-In que la web, mostrar
@@ -943,9 +945,11 @@ vive en el panel derecho de Itinerario:
 - Un único client ID fijo (`trip-planner-claude`, cliente público con PKCE, sin
   secreto) con redirect URIs `https://claude.ai/api/mcp/auth_callback` y
   `https://claude.com/api/mcp/auth_callback` (Anthropic avisó que el callback podría
-  migrar a `claude.com`). **No hay registro dinámico de clientes** (no existe
-  `/oauth/register`). Configurable por `MCP_OAUTH_CLIENT_ID_TP` /
+  migrar a `claude.com`). Configurable por `MCP_OAUTH_CLIENT_ID_TP` /
   `MCP_OAUTH_REDIRECT_URIS_TP`.
+  > _Actualizado 2026-09-19 (HU-12.4): originalmente no había registro dinámico de
+  > clientes; ahora existe `POST /oauth/register` (RFC 7591) para clientes como
+  > ChatGPT. El client ID fijo de Claude no cambia y sigue funcionando igual._
 - Config: `PUBLIC_URL_TP` (origen público = issuer y base de `/mcp`) es requerido en
   producción — sin él, y sin `JWT_SECRET_TP`/`GOOGLE_CLIENT_ID_TP`, todo `/mcp` y
   `/oauth/*` responde 503 (fail-closed). Ruteo: `vercel.json` reescribe `/oauth/*`,
@@ -954,7 +958,8 @@ vive en el panel derecho de Itinerario:
 - **Conectar desde Claude:** agregar un conector personalizado con la URL
   `https://<dominio>/mcp` y, en *Configuración avanzada*, poner **OAuth Client ID =
   `trip-planner-claude`** (sin secreto). Si el Client ID se deja vacío, Claude intenta
-  registro dinámico (DCR), que este servidor no ofrece a propósito.
+  registro dinámico (DCR); desde HU-12.4 el servidor lo ofrece, así que también
+  funciona sin cargar el Client ID.
 
 ### HU-12.2 — Herramientas MCP de consulta ✅
 **Como** viajero, **quiero** preguntarle a Claude cosas de mis viajes en lenguaje natural, **para** no tener que abrir la app para consultas simples.
@@ -988,6 +993,50 @@ vive en el panel derecho de Itinerario:
   probadas en uso real. Requerirá un scope propio (`mcp:write`, distinto de
   `mcp:read`) y confirmación explícita del viajero por herramienta; los tokens
   actuales no lo incluyen.
+
+### HU-12.4 — Conectar también desde ChatGPT (registro dinámico de clientes) ✅
+**Como** viajero, **quiero** conectar el mismo MCP desde ChatGPT, **para** consultar mis viajes desde cualquiera de los dos asistentes.
+
+ChatGPT no usa un client ID pre-acordado: exige **CIMD** o, como alternativa, **registro
+dinámico de clientes (DCR, RFC 7591)**. Se implementó DCR (lo soporta el SDK oficial). El
+alcance sigue siendo el de HU-12.1/12.2: solo lectura (`mcp:read`).
+
+- El sistema DEBE ofrecer `POST /oauth/register` y anunciarlo como
+  `registration_endpoint` en la metadata OAuth. El SDK valida el cuerpo RFC 7591 y
+  limita a 20 registros por hora por IP.
+- **Solo se aceptan redirect URIs de una allowlist del servidor** (`https` exacto, sin
+  query ni fragmento ni credenciales): `https://chatgpt.com/connector_platform_oauth_redirect`,
+  `https://chatgpt.com/connector/oauth/<id>` (el `*` final es exactamente **un** segmento
+  `[A-Za-z0-9_-]+`), más los callbacks de Claude. Cualquier otra URI → `400
+  invalid_client_metadata`. Configurable con `MCP_DCR_REDIRECT_URIS_TP`. Por eso el
+  registro abierto no permite mandar un código a un destino ajeno: el código solo
+  viaja a callbacks ya confiables, y para emitirlo hace falta igual el Google Sign-In
+  de un correo de la allowlist.
+- Todo cliente registrado es **público** (PKCE, sin secreto): si pide otro método de
+  autenticación se lo cambia a `none` y la respuesta lo refleja (RFC 7591 §3.2.1). El
+  `client_id` es un UUID generado por el servidor.
+- Se guarda `(client_id, nombre, redirect_uris)` en `oauth_clients` (migración 022). El
+  nombre se sanea (sin caracteres de control ni `<`/`>`, máx. 60) y solo se usa para
+  mostrarlo. **Tope de 200 clientes**, y los registrados hace más de 24 h que nunca
+  iniciaron una autorización se borran al registrar otro.
+- **RFC 9207:** la metadata publica `authorization_response_iss_parameter_supported:
+  true` y **toda** redirección de vuelta al cliente (éxito, "Cancelar" o error) lleva
+  `iss` con el issuer exacto — ChatGPT lo compara byte a byte y rechaza la respuesta si
+  falta o difiere. `authorization_servers` de la metadata del recurso coincide con el
+  issuer.
+- La pantalla de consentimiento pasó de `/autorizar-claude` a **`/autorizar`** y ya no
+  dice "Claude": muestra el nombre del cliente registrado y el host al que vuelve la
+  aprobación (lo único no falsificable). `/autorizar-claude` queda como alias.
+- Claude no cambia: su client ID fijo sigue funcionando y, de paso, también puede
+  registrarse dinámicamente.
+- **Conectar desde ChatGPT:** activar el *modo desarrollador* (Settings → Security and
+  login; depende del plan/workspace), agregar una conexión con la URL
+  `https://<dominio>/mcp` y autorizar con el Google Sign-In habilitado.
+- Verificado con 71 comprobaciones e2e (metadata, registro aceptado y rechazado —
+  incluidos trucos de userinfo/segmentos extra/`..`/hosts parecidos —, flujo completo
+  PKCE → tokens → `tools/list` y `tools/call` → refresh rotativo → revocación, `iss` en
+  éxito/deny/error, cliente fijo de Claude intacto, poda y tope). **No** probado desde
+  ChatGPT real todavía.
 
 ## Frontend v2 — reconstrucción visual y de navegación
 

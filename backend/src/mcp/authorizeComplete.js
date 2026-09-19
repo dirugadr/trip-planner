@@ -2,7 +2,7 @@ import express from 'express';
 import { mcpConfigError } from '../config/index.js';
 import { verifyGoogleToken, isEmailAllowed } from '../lib/auth.js';
 import { OAuthError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
-import { validateAuthorizeRequest, issueAuthorizationCode } from './oauthProvider.js';
+import { validateAuthorizeRequest, issueAuthorizationCode, withIssuer } from './oauthProvider.js';
 
 /**
  * Second half of the authorization-code flow. /oauth/authorize (SDK) sends the
@@ -37,7 +37,7 @@ export function createMcpAuthorizeRouter({ verifyGoogle = verifyGoogleToken } = 
       const url = new URL(request.redirectUri);
       for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
       if (typeof body.state === 'string' && body.state) url.searchParams.set('state', body.state);
-      return url.href;
+      return withIssuer(url.href);
     };
 
     if (body.deny === true) {

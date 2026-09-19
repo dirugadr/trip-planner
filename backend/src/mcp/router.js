@@ -3,11 +3,12 @@ import rateLimit from 'express-rate-limit';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { authorizationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
 import { tokenHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/token.js';
+import { clientRegistrationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/register.js';
 import { revocationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/revoke.js';
 import { mcpAuthMetadataRouter, getOAuthProtectedResourceMetadataUrl } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { mcpConfigError } from '../config/index.js';
-import { oauthProvider, MCP_SCOPE, mcpIssuerUrl, mcpResourceUrl } from './oauthProvider.js';
+import { oauthProvider, MCP_SCOPE, mcpIssuerUrl, mcpResourceUrl, consentPageUrl, withIssuer } from './oauthProvider.js';
 import { createMcpServer } from './tools.js';
 
 /**
@@ -17,7 +18,8 @@ import { createMcpServer } from './tools.js';
  *
  *   /.well-known/oauth-authorization-server         RFC 8414 metadata
  *   /.well-known/oauth-protected-resource/mcp       RFC 9728 metadata
- *   /oauth/authorize | /oauth/token | /oauth/revoke SDK handlers over our provider
+ *   /oauth/authorize | /oauth/token | /oauth/revoke | /oauth/register
+ *                                                   SDK handlers over our provider
  *   POST /mcp                                       stateless Streamable HTTP
  */
 export function createMcpRouter() {
@@ -39,11 +41,29 @@ export function createMcpRouter() {
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
-    // Public client (PKCE, no secret). No registration_endpoint: the only
-    // client is the fixed Claude one — no dynamic client registration.
+    // Public clients only (PKCE, no secret). Claude uses its fixed client id;
+    // ChatGPT registers itself here (HU-12.4, RFC 7591).
+    registration_endpoint: `${mcpIssuerUrl()}/oauth/register`,
     token_endpoint_auth_methods_supported: ['none'],
-    scopes_supported: [MCP_SCOPE, 'offline_access']
+    scopes_supported: [MCP_SCOPE, 'offline_access'],
+    // RFC 9207: every authorization response (success or error) carries `iss`.
+    authorization_response_iss_parameter_supported: true
   });
+
+  // The SDK builds error redirects itself (`?error=...`) without `iss`, but we
+  // advertise RFC 9207, so add it to every redirect back to the client. Only
+  // the hop to our own consent page is left alone.
+  const issuerOnRedirects = (req, res, next) => {
+    const redirect = res.redirect.bind(res);
+    res.redirect = (...args) => {
+      const [status, url] = typeof args[0] === 'number' ? args : [302, args[0]];
+      const target = new URL(url);
+      const consent = new URL(consentPageUrl());
+      const toConsent = target.origin === consent.origin && target.pathname === consent.pathname;
+      return redirect(status, toConsent ? url : withIssuer(url));
+    };
+    next();
+  };
 
   // Metadata is built per request so it always reflects the current config.
   router.use((req, res, next) => {
@@ -58,7 +78,11 @@ export function createMcpRouter() {
     })(req, res, next);
   });
 
-  router.use('/oauth/authorize', guard, authorizationHandler({ provider: oauthProvider }));
+  router.use('/oauth/authorize', guard, issuerOnRedirects, authorizationHandler({ provider: oauthProvider }));
+  // Dynamic client registration: the SDK handler validates the RFC 7591 body and
+  // rate-limits (20/h per IP); clientsStore.registerClient enforces the redirect
+  // URI allowlist and forces a public client.
+  router.use('/oauth/register', guard, clientRegistrationHandler({ clientsStore: oauthProvider.clientsStore }));
   router.use('/oauth/token', guard, tokenHandler({ provider: oauthProvider }));
   router.use('/oauth/revoke', guard, revocationHandler({ provider: oauthProvider }));
 

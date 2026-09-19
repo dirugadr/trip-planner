@@ -27,14 +27,18 @@ function hostOf(url) {
 }
 
 /**
- * Consent screen for the MCP OAuth flow (HU-12.1). The backend's
+ * Consent screen for the MCP OAuth flow (HU-12.1, generalized in HU-12.4 for
+ * any registered client such as Claude or ChatGPT). The backend's
  * /oauth/authorize sends the browser here; the traveler signs in with Google
  * (same allowlisted login as the web app) and explicitly approves. The backend
- * re-validates every parameter and only then returns the redirect back to
- * Claude — this page never redirects anywhere it wasn't told to by the server.
+ * re-validates every parameter and only then returns the redirect back to the
+ * client — this page never redirects anywhere it wasn't told to by the server.
+ * `client_name` is display-only (the host the approval returns to is shown too,
+ * since that is what can't be spoofed).
  */
-export default function AutorizarClaudePage() {
+export default function AutorizarConexionPage() {
   const [search] = useSearchParams();
+  const appName = (search.get('client_name') || '').slice(0, 60) || 'Una aplicación';
   const params = useMemo(() => {
     const out = {};
     for (const key of PARAM_KEYS) if (search.get(key)) out[key] = search.get(key);
@@ -65,17 +69,17 @@ export default function AutorizarClaudePage() {
       <div className="card max-w-[440px] w-full">
         <h1 className="text-[20px] font-bold mb-1 flex items-center justify-center gap-2">
           <span className="msi text-secondary text-[28px]">travel_explore</span>
-          Conectar Claude
+          Conectar aplicación
         </h1>
 
         {missing ? (
           <div className="alert alert-error mt-4">
-            Falta información de la solicitud de autorización. Volvé a iniciar la conexión desde Claude.
+            Falta información de la solicitud de autorización. Volvé a iniciar la conexión desde la aplicación.
           </div>
         ) : (
           <>
             <p className="muted mt-2 mb-3 text-center">
-              Claude está pidiendo acceso a tu Trip Planner.
+              <strong>{appName}</strong> está pidiendo acceso a tu Trip Planner.
             </p>
             <ul className="text-[13px] mb-4 list-disc pl-5 space-y-1">
               <li>

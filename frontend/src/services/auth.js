@@ -5,3 +5,10 @@ export const loginWithGoogle = (credential) => apiPost('/auth/login', { credenti
 
 // Validate the stored session token and get the current user
 export const fetchMe = () => apiGet('/auth/me');
+
+// MCP/OAuth consent step (Épica 12): approve (Google credential) or deny an
+// authorization request from Claude. Resolves to { redirect_url } — the
+// server-validated URL (registered redirect_uri + code/state or an error).
+export const approveMcpAuthorization = (params, credential) =>
+  apiPost('/auth/mcp/authorize', { ...params, credential });
+export const denyMcpAuthorization = (params) => apiPost('/auth/mcp/authorize', { ...params, deny: true });

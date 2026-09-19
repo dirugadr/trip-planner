@@ -4,9 +4,7 @@ import Trip from '../models/Trip.js';
 import Day from '../models/Day.js';
 import Budget from '../models/Budget.js';
 import Accommodation from '../models/Accommodation.js';
-import ActivityPoi from '../models/ActivityPoi.js';
-import Document from '../models/Document.js';
-import Expense from '../models/Expense.js';
+import { loadActivityDetails } from '../lib/activityDetails.js';
 
 const router = express.Router();
 
@@ -117,19 +115,10 @@ router.get('/:id', async (req, res) => {
     // (HU-6.4) and linked expense (HU-3.3/3.4) in one query each — the
     // itinerary card (v2 UI) shows all three without per-activity requests.
     const activityIds = days.flatMap((d) => d.activities.map((a) => a.id));
-    const [poisByActivity, documentsByActivity, expenseByActivity] = await Promise.all([
-      ActivityPoi.listForActivities(activityIds),
-      Document.listForActivities(activityIds),
-      Expense.listForActivities(activityIds)
-    ]);
+    const withDetails = await loadActivityDetails(activityIds);
     days = days.map((day) => ({
       ...day,
-      activities: day.activities.map((a) => ({
-        ...a,
-        pois: poisByActivity.get(a.id) || [],
-        documents: documentsByActivity.get(a.id) || [],
-        expense: expenseByActivity.get(a.id) || null
-      }))
+      activities: day.activities.map(withDetails)
     }));
 
     // Get stats

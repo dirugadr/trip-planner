@@ -1035,8 +1035,12 @@ alcance sigue siendo el de HU-12.1/12.2: solo lectura (`mcp:read`).
 - Verificado con 71 comprobaciones e2e (metadata, registro aceptado y rechazado —
   incluidos trucos de userinfo/segmentos extra/`..`/hosts parecidos —, flujo completo
   PKCE → tokens → `tools/list` y `tools/call` → refresh rotativo → revocación, `iss` en
-  éxito/deny/error, cliente fijo de Claude intacto, poda y tope). **No** probado desde
-  ChatGPT real todavía.
+  éxito/deny/error, cliente fijo de Claude intacto, poda y tope).
+  > _Probado 2026-09-19 desde ChatGPT real: la conexión funciona de punta a punta._
+  > **Ojo:** en ChatGPT el campo *OAuth Client ID* de la configuración avanzada debe
+  > quedar **vacío**. Si se carga `trip-planner-claude` (el ID fijo de Claude), ChatGPT
+  > lo usa en vez de registrarse y `/oauth/authorize` responde `Unregistered
+  > redirect_uri`, porque ese cliente solo acepta los callbacks de Claude._
 
 ## Frontend v2 — reconstrucción visual y de navegación
 

@@ -5,6 +5,7 @@ import BudgetPage from './pages/BudgetPage.jsx';
 import AccommodationsPage from './pages/AccommodationsPage.jsx';
 import DocumentosLinksPage from './pages/DocumentosLinksPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import AutorizarClaudePage from './pages/AutorizarClaudePage.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Spinner from './components/Spinner.jsx';
 import TripTabs from './components/TripTabs.jsx';
@@ -62,6 +63,8 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* MCP OAuth consent (Épica 12): does its own Google sign-in, independent of the web session */}
+          <Route path="/autorizar-claude" element={<AutorizarClaudePage />} />
           <Route
             path="/"
             element={

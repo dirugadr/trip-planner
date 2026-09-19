@@ -68,6 +68,24 @@ export const config = {
     allowedEmails
   },
 
+  // Remote MCP server (Épica 12). publicUrl is the origin users type into
+  // Claude — it becomes the OAuth issuer and the MCP resource URL, so it's
+  // explicit config (never derived from the Host header). Required in prod.
+  mcp: {
+    publicUrl: (
+      process.env.PUBLIC_URL_TP ||
+      (env === 'production' ? '' : process.env.CORS_ORIGIN_TP || 'http://localhost:5173')
+    ).replace(/\/+$/, ''),
+    clientId: process.env.MCP_OAUTH_CLIENT_ID_TP || 'trip-planner-claude',
+    redirectUris: (
+      process.env.MCP_OAUTH_REDIRECT_URIS_TP ||
+      'https://claude.ai/api/mcp/auth_callback,https://claude.com/api/mcp/auth_callback'
+    )
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN_TP || 'http://localhost:5173',
     credentials: true
@@ -85,6 +103,17 @@ export const config = {
 export function authConfigError() {
   if (config.jwt.insecure) return 'Auth mal configurada: falta JWT_SECRET_TP en el servidor.';
   if (!config.google.clientId) return 'Auth mal configurada: falta GOOGLE_CLIENT_ID_TP en el servidor.';
+  return null;
+}
+
+/**
+ * Returns a message when the MCP server / its OAuth flow can't operate safely,
+ * else null. Same fail-closed idea as authConfigError, plus the public URL.
+ */
+export function mcpConfigError() {
+  const authErr = authConfigError();
+  if (authErr) return authErr;
+  if (!config.mcp.publicUrl) return 'MCP no disponible: falta PUBLIC_URL_TP en el servidor.';
   return null;
 }
 

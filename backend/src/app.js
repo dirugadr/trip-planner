@@ -16,6 +16,8 @@ import poisRouter, { publicPoisRouter } from './api/pois.js';
 import documentsRouter from './api/documents.js';
 import linksRouter from './api/links.js';
 import routeTemplatesRouter from './api/routeTemplates.js';
+import { createMcpRouter } from './mcp/router.js';
+import { createMcpAuthorizeRouter } from './mcp/authorizeComplete.js';
 
 const app = express();
 
@@ -53,6 +55,9 @@ const loginLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 app.use('/api/auth/login', loginLimiter);
+// The MCP consent step verifies a Google token and can mint an authorization
+// code, so it gets the same brute-force limit as login.
+app.use('/api/auth/mcp', loginLimiter);
 
 // ============================================
 // Health check
@@ -69,8 +74,15 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
+// Remote MCP server + OAuth (Épica 12) — root paths, own auth, NOT under /api
+// ============================================
+app.use(createMcpRouter());
+
+// ============================================
 // API Routes
 // ============================================
+// Public: MCP consent step (Google-verified, see mcp/authorizeComplete.js)
+app.use('/api/auth/mcp', createMcpAuthorizeRouter());
 // Public: login + session check
 app.use('/api/auth', authRouter);
 // Public: streams a POI's manually-uploaded photo — rendered as a plain

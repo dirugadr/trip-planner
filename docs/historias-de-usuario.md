@@ -879,6 +879,116 @@ vive en el panel derecho de Itinerario:
 > primeras 10 paradas" y URL recortada exactamente en la 10ª (confirmado
 > inspeccionando los parámetros de la URL armada).
 
+---
+
+## Épica 12 — MCP remoto (Claude)
+
+> Un servidor MCP remoto en el mismo backend/deploy (Express + Vercel), para
+> consultar los viajes en lenguaje natural desde Claude. **Primera entrega:
+> login OAuth + solo herramientas de lectura.** Las herramientas de acción
+> (crear/editar actividades, gastos, POIs) quedan **fuera de esta entrega** —
+> ver HU-12.3. Es la superficie más sensible del proyecto (un servidor de
+> autorización OAuth 2.1 que emite tokens de acceso), así que tiene su propio
+> ciclo de auth, **separado** del JWT de sesión y de `requireAuth` que usa el
+> frontend web: un token del MCP no sirve contra `/api/*` y un JWT web no sirve
+> contra `/mcp` (verificado en ambos sentidos).
+>
+> **Modelo de acceso:** como en el resto de la app, no hay dueño por viaje — toda
+> persona habilitada (Épica 7) ve todos los viajes. La garantía de esta épica es
+> que **solo un correo de la allowlist** llega a los datos, revalidado en cada
+> request; no hay un filtro "solo tus viajes" porque el modelo de datos no tiene
+> ese concepto.
+>
+> Piezas: `backend/src/mcp/` (`oauthProvider.js`, `authorizeComplete.js`,
+> `tools.js`, `router.js`), migración `021_mcp_oauth.sql`, pantalla
+> `/autorizar-claude` (`AutorizarClaudePage.jsx`). Usa `@modelcontextprotocol/sdk`
+> (handlers de PKCE/metadata/bearer del SDK oficial sobre un proveedor propio en
+> Turso) y transporte **Streamable HTTP stateless** (un servidor+transporte por
+> request, respuestas JSON, sin sesión — encaja con las funciones serverless).
+
+### HU-12.1 — Autorización OAuth para el MCP remoto ✅
+**Como** viajero, **quiero** autorizar a Claude a acceder a mi Trip Planner mediante un login seguro, **para** poder usarlo en lenguaje natural sin compartir credenciales directamente.
+
+- El sistema DEBE exponer la metadata OAuth para que Claude descubra cómo autenticarse:
+  `/.well-known/oauth-authorization-server` (RFC 8414) y
+  `/.well-known/oauth-protected-resource/mcp` (RFC 9728 — el MCP la exige; el
+  `401` de `/mcp` lleva `WWW-Authenticate: Bearer resource_metadata=…`).
+- `GET /oauth/authorize` DEBE validar `client_id`, `redirect_uri` (contra la lista
+  registrada), PKCE `S256`, `scope` y `resource`, y redirigir a la pantalla de
+  consentimiento `/autorizar-claude`. Un `client_id` o `redirect_uri` inválido se
+  responde con `400` **sin** redirigir; el resto de los errores vuelven al
+  `redirect_uri` registrado.
+- La pantalla de consentimiento DEBE pedir el mismo Google Sign-In que la web, mostrar
+  qué se está concediendo (solo lectura) y a qué host se vuelve, y exigir un
+  "Autorizar" explícito (o "Cancelar", que vuelve a Claude con `access_denied`).
+  Tras el login, el backend (`POST /api/auth/mcp/authorize`) **re-valida todos los
+  parámetros** (viajan por el navegador), verifica el token de Google, exige
+  `email_verified` y aplica `ALLOWED_EMAILS` igual que `/api/auth/login`. Solo
+  entonces genera un código de autorización de un solo uso (5 min).
+- CUANDO el correo no está en la allowlist, el flujo DEBE fallar (403) **sin emitir
+  ningún código ni token**.
+- `POST /oauth/token` DEBE validar PKCE (`code_verifier` contra el `code_challenge`
+  guardado), que el código no esté usado ni vencido, que `redirect_uri` coincida con
+  el de la autorización y que `resource` sea este servidor; el consumo del código es
+  atómico (dos canjes simultáneos → solo uno prospera). Emite access token
+  (1 h) + refresh token (30 d, **rotativo y de un solo uso**: cada refresh revoca el
+  anterior; sin ampliar scope).
+- Códigos y tokens se guardan **solo como hash SHA-256** (`oauth_authorization_codes`,
+  `mcp_access_tokens`, `mcp_refresh_tokens`).
+- `POST /oauth/revoke` (RFC 7009): revocar un refresh token corta también los access
+  tokens vivos de ese usuario. Un token revocado deja de funcionar de inmediato.
+- El middleware del MCP (`requireBearerAuth` del SDK + `verifyAccessToken`) es
+  fail-closed y **revalida la allowlist en cada request** — sacar un correo corta el
+  acceso al instante, incluso con un token vigente (también rechaza su refresh).
+- Un único client ID fijo (`trip-planner-claude`, cliente público con PKCE, sin
+  secreto) con redirect URIs `https://claude.ai/api/mcp/auth_callback` y
+  `https://claude.com/api/mcp/auth_callback` (Anthropic avisó que el callback podría
+  migrar a `claude.com`). **No hay registro dinámico de clientes** (no existe
+  `/oauth/register`). Configurable por `MCP_OAUTH_CLIENT_ID_TP` /
+  `MCP_OAUTH_REDIRECT_URIS_TP`.
+- Config: `PUBLIC_URL_TP` (origen público = issuer y base de `/mcp`) es requerido en
+  producción — sin él, y sin `JWT_SECRET_TP`/`GOOGLE_CLIENT_ID_TP`, todo `/mcp` y
+  `/oauth/*` responde 503 (fail-closed). Ruteo: `vercel.json` reescribe `/oauth/*`,
+  `/mcp` y `/.well-known/*` a la función (antes del catch-all del frontend); en dev,
+  Vite hace de proxy de esos mismos paths.
+- **Conectar desde Claude:** agregar un conector personalizado con la URL
+  `https://<dominio>/mcp` y, en *Configuración avanzada*, poner **OAuth Client ID =
+  `trip-planner-claude`** (sin secreto). Si el Client ID se deja vacío, Claude intenta
+  registro dinámico (DCR), que este servidor no ofrece a propósito.
+
+### HU-12.2 — Herramientas MCP de consulta ✅
+**Como** viajero, **quiero** preguntarle a Claude cosas de mis viajes en lenguaje natural, **para** no tener que abrir la app para consultas simples.
+
+- El sistema DEBE exponer herramientas MCP **100 % de solo lectura**, todas con
+  `readOnlyHint: true` (no requieren confirmación): `list_trips`,
+  `get_day_itinerary` (por fecha o número de día: actividades por horario con
+  hora fin, POIs con categoría/dirección, gasto y documentos vinculados),
+  `get_budget_summary`, `list_expenses` (con categoría y medio de pago resueltos),
+  `list_accommodations`, `list_pois` (filtros opcionales por categoría y ciudad,
+  sin distinguir mayúsculas ni acentos), `list_documents` y `list_interest_links`
+  (filtro opcional por tags).
+- Cada tool devuelve datos estructurados (JSON) suficientes para responder sin
+  llamadas extra (nombres, no solo IDs). Un `trip_id` inexistente devuelve un
+  resultado de error claro, nunca un crash ni un detalle interno.
+- Las tools son delgadas: reusan los mismos modelos que los endpoints REST (y
+  `lib/activityDetails.js`, extraído de `GET /api/trips/:id` para que el itinerario
+  del MCP y el de la web no puedan divergir); no reimplementan lógica ni se llaman
+  por HTTP a sí mismas.
+- `list_documents` **no expone** la URL privada del archivo (`file_path`, Vercel
+  Blob) — solo metadatos.
+- Verificación: la batería de pruebas de esta entrega incluyó un snapshot hash de
+  todas las tablas de negocio antes y después de ejercitar las 8 tools (idéntico:
+  ninguna escribe) y pruebas de mutación de los controles de allowlist (rompiéndolos
+  a propósito, los tests fallan como corresponde).
+
+### HU-12.3 — Herramientas MCP de acción 🔜
+**Como** viajero, **quiero** pedirle a Claude que cree o edite actividades, gastos y lugares, **para** planificar sin abrir la app.
+
+- Fuera de esta entrega, a propósito: se implementa una vez que HU-12.1/12.2 estén
+  probadas en uso real. Requerirá un scope propio (`mcp:write`, distinto de
+  `mcp:read`) y confirmación explícita del viajero por herramienta; los tokens
+  actuales no lo incluyen.
+
 ## Frontend v2 — reconstrucción visual y de navegación
 
 > No es una épica de negocio, sino un cambio transversal: reescritura

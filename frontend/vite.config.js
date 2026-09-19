@@ -11,7 +11,12 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false
-      }
+      },
+      // Remote MCP server + OAuth (Épica 12): same-origin in prod (Vercel
+      // rewrites), so mirror that in dev.
+      '/oauth': { target: 'http://localhost:3000', changeOrigin: true, secure: false },
+      '/mcp': { target: 'http://localhost:3000', changeOrigin: true, secure: false },
+      '/.well-known': { target: 'http://localhost:3000', changeOrigin: true, secure: false }
     }
   },
   resolve: {

@@ -16,7 +16,8 @@ import {
 
 // mcp:read (HU-12.2) is what every connection gets. mcp:write (HU-12.3) is a
 // separate scope, never implied by it: it's only issued when the traveler ticks
-// it on the consent screen (see authorizeComplete.js).
+// the box on the consent screen (see authorizeComplete.js), even if the client
+// didn't ask for it — Claude doesn't.
 export { MCP_SCOPE, MCP_WRITE_SCOPE };
 // `offline_access` is accepted because clients append it to ask for a refresh
 // token — we always issue one, so it grants nothing extra.

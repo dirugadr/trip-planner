@@ -997,10 +997,15 @@ Es la primera vez que un modelo de lenguaje puede **escribir** datos por interpr
   `create_expense`, `create_poi`. **No existe ninguna herramienta de eliminación** (ni de actividades,
   gastos, lugares o viajes) y ninguna modifica más de una entidad por llamada (no hay "cargar todo el día").
 - **Permiso aparte: scope `mcp:write`.** Las herramientas de escritura **solo existen** (no se listan) para
-  tokens que lo tengan, y cada una vuelve a chequearlo al ejecutarse. Se otorga únicamente si el cliente lo
-  pide **y** el viajero marca en la pantalla de consentimiento *"Permitir también crear y editar"* (destildado
-  por defecto; el texto aclara además *"Nunca podrá eliminar nada"*). Sin marcarlo, o para conexiones ya
-  existentes, todo sigue siendo solo lectura hasta reconectar. El refresh conserva el scope y no puede ampliarlo.
+  tokens que lo tengan, y cada una vuelve a chequearlo al ejecutarse. Se otorga únicamente si el viajero marca en la
+  pantalla de consentimiento *"Permitir también crear y editar"* (siempre visible, destildado por defecto; el
+  texto aclara además *"Nunca podrá eliminar nada"*). Sin marcarlo, o para conexiones ya existentes, todo sigue
+  siendo solo lectura hasta reconectar. El refresh conserva el scope y no puede ampliarlo.
+  > _Ajuste 2026-09-21: la primera versión mostraba el tilde solo si el cliente pedía `mcp:write`, pero Claude
+  > (probado en real) no lo pide aunque el servidor lo anuncie, así que no había forma de activar la escritura.
+  > Ahora el tilde no depende de lo que pida el cliente: el servidor emite `mcp:read mcp:write` cuando el
+  > viajero lo marca (RFC 6749 §3.3 permite emitir un scope distinto del pedido si la respuesta lo informa, y lo
+  > hace). Sigue siendo consentimiento explícito, por conexión y de solo lectura por defecto._
   > _Nota de diseño: la spec de HU-12.3 no mencionaba el scope y pedía no tocar el flujo OAuth, pero la spec
   > original de la Épica 12 exigía un scope propio y los tokens vigentes habían consentido "solo lectura"; se
   > tocó solo lo mínimo (scope + tilde + texto). No cambian PKCE, códigos, tokens, allowlist ni revocación._

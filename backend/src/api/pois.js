@@ -6,8 +6,8 @@ import Trip from '../models/Trip.js';
 import Poi from '../models/Poi.js';
 import PoiCategory from '../models/PoiCategory.js';
 import ActivityPoi from '../models/ActivityPoi.js';
-import { sanitizeHttpUrl } from '../lib/url.js';
 import { lookupPhotoNear } from '../lib/photoLookup.js';
+import { validatePoiPayload, createPoi } from '../lib/mutations.js';
 import { blobConfigError, anthropicConfigError } from '../config/index.js';
 import { uploadBlob, streamBlob } from '../lib/blob.js';
 import { checkImageFile, MAX_FILE_BYTES } from '../lib/fileTypes.js';
@@ -37,73 +37,6 @@ function guardBlob(req, res, next) {
   next();
 }
 
-/**
- * Validate the POI payload. The frontend geocodes the address (Nominatim) and
- * sends resolved coordinates + address; the backend never calls Nominatim, it
- * only checks and persists what it gets.
- */
-export async function validatePoiPayload(body, { partial = false } = {}) {
-  const errors = [];
-  const out = {};
-
-  if (!partial || 'name' in body) {
-    const name = (body.name ?? '').toString().trim();
-    if (!name) errors.push('Falta el nombre');
-    else out.name = name;
-  }
-
-  if (!partial || 'category_id' in body) {
-    const categoryId = (body.category_id ?? '').toString().trim();
-    if (!categoryId) {
-      errors.push('Falta la categoría');
-    } else {
-      const category = await PoiCategory.findById(categoryId);
-      if (!category) errors.push('La categoría no es válida');
-      else out.category_id = categoryId;
-    }
-  }
-
-  // lat/lng travel together — if either is present, both must be valid.
-  const hasLat = 'latitude' in body || 'longitude' in body;
-  if (!partial || hasLat) {
-    const lat = Number(body.latitude);
-    const lng = Number(body.longitude);
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-      errors.push('La latitud no es válida');
-    } else if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
-      errors.push('La longitud no es válida');
-    } else {
-      out.latitude = lat;
-      out.longitude = lng;
-    }
-  }
-
-  for (const key of ['address', 'city', 'notes', 'description']) {
-    if (key in body) out[key] = (body[key] ?? '').toString().trim() || null;
-  }
-  if ('url' in body) {
-    const raw = (body.url ?? '').toString().trim();
-    if (raw && !sanitizeHttpUrl(raw)) errors.push('El enlace debe empezar con http:// o https://');
-    else out.url = sanitizeHttpUrl(raw);
-  }
-
-  if ('estimated_duration_minutes' in body) {
-    const raw = body.estimated_duration_minutes;
-    if (raw === '' || raw == null) {
-      out.estimated_duration_minutes = null;
-    } else {
-      const minutes = Number(raw);
-      if (!Number.isInteger(minutes) || minutes <= 0) {
-        errors.push('La duración estimada debe ser un número entero de minutos mayor a 0');
-      } else {
-        out.estimated_duration_minutes = minutes;
-      }
-    }
-  }
-
-  return { errors, out };
-}
-
 // GET /api/poi-categories — the 7 predefined categories
 router.get('/poi-categories', async (req, res) => {
   try {
@@ -124,23 +57,12 @@ router.get('/trips/:tripId/pois', async (req, res) => {
   }
 });
 
-// POST /api/trips/:tripId/pois — create a POI
+// POST /api/trips/:tripId/pois — create a POI (logic shared with the MCP tools: lib/mutations.js)
 router.post('/trips/:tripId/pois', async (req, res) => {
   try {
-    const trip = await Trip.findById(req.params.tripId);
-    if (!trip) return res.status(404).json({ success: false, error: 'Trip not found' });
-
-    const { errors, out } = await validatePoiPayload(req.body);
-    if (!('latitude' in out)) errors.push('Falta la ubicación');
-    if (errors.length) return res.status(400).json({ success: false, error: errors.join('. ') });
-
-    let poi = await Poi.create({ trip_id: trip.id, ...out });
-
-    // Foto por lugar: best-effort, never blocks creating the POI.
-    const photo = await lookupPhotoNear(poi.latitude, poi.longitude);
-    if (photo) poi = (await Poi.setPhoto(poi.id, photo)) || poi;
-
-    res.status(201).json({ success: true, data: poi });
+    const result = await createPoi(req.params.tripId, req.body);
+    if (!result.ok) return res.status(result.status).json({ success: false, error: result.error });
+    res.status(201).json({ success: true, data: result.poi });
   } catch (error) {
     serverError(res, error);
   }

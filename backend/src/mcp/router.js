@@ -8,7 +8,8 @@ import { revocationHandler } from '@modelcontextprotocol/sdk/server/auth/handler
 import { mcpAuthMetadataRouter, getOAuthProtectedResourceMetadataUrl } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { mcpConfigError } from '../config/index.js';
-import { oauthProvider, MCP_SCOPE, mcpIssuerUrl, mcpResourceUrl, consentPageUrl, withIssuer } from './oauthProvider.js';
+import { oauthProvider, mcpIssuerUrl, mcpResourceUrl, consentPageUrl, withIssuer } from './oauthProvider.js';
+import { MCP_SCOPE, MCP_WRITE_SCOPE, hasWriteScope } from './scopes.js';
 import { createMcpServer } from './tools.js';
 
 /**
@@ -45,7 +46,7 @@ export function createMcpRouter() {
     // ChatGPT registers itself here (HU-12.4, RFC 7591).
     registration_endpoint: `${mcpIssuerUrl()}/oauth/register`,
     token_endpoint_auth_methods_supported: ['none'],
-    scopes_supported: [MCP_SCOPE, 'offline_access'],
+    scopes_supported: [MCP_SCOPE, MCP_WRITE_SCOPE, 'offline_access'],
     // RFC 9207: every authorization response (success or error) carries `iss`.
     authorization_response_iss_parameter_supported: true
   });
@@ -73,7 +74,7 @@ export function createMcpRouter() {
     return mcpAuthMetadataRouter({
       oauthMetadata: oauthMetadata(),
       resourceServerUrl: new URL(mcpResourceUrl()),
-      scopesSupported: [MCP_SCOPE],
+      scopesSupported: [MCP_SCOPE, MCP_WRITE_SCOPE],
       resourceName: 'Trip Planner'
     })(req, res, next);
   });
@@ -107,7 +108,8 @@ export function createMcpRouter() {
     async (req, res) => {
       // Stateless: a fresh server+transport per request suits serverless
       // (no session to keep alive). JSON responses instead of SSE streams.
-      const server = createMcpServer();
+      // The write tools exist only on connections whose token carries mcp:write.
+      const server = createMcpServer({ canWrite: hasWriteScope(req.auth?.scopes) });
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
       res.on('close', () => {
         transport.close();

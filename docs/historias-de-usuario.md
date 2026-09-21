@@ -884,10 +884,10 @@ vive en el panel derecho de Itinerario:
 ## Épica 12 — MCP remoto (Claude)
 
 > Un servidor MCP remoto en el mismo backend/deploy (Express + Vercel), para
-> consultar los viajes en lenguaje natural desde Claude. **Primera entrega:
-> login OAuth + solo herramientas de lectura.** Las herramientas de acción
-> (crear/editar actividades, gastos, POIs) quedan **fuera de esta entrega** —
-> ver HU-12.3. Es la superficie más sensible del proyecto (un servidor de
+> consultar (y, con permiso explícito, cargar) los viajes en lenguaje natural desde
+> Claude o ChatGPT. **Primera entrega: login OAuth + herramientas de lectura**
+> (HU-12.1/12.2); las herramientas de **creación/edición** llegaron después
+> (HU-12.3), detrás de un scope aparte y sin ninguna herramienta de borrado. Es la superficie más sensible del proyecto (un servidor de
 > autorización OAuth 2.1 que emite tokens de acceso), así que tiene su propio
 > ciclo de auth, **separado** del JWT de sesión y de `requireAuth` que usa el
 > frontend web: un token del MCP no sirve contra `/api/*` y un JWT web no sirve
@@ -921,8 +921,9 @@ vive en el panel derecho de Itinerario:
   responde con `400` **sin** redirigir; el resto de los errores vuelven al
   `redirect_uri` registrado.
 - La pantalla de consentimiento DEBE pedir el mismo Google Sign-In que la web, mostrar
-  qué se está concediendo (solo lectura) y a qué host se vuelve, y exigir un
-  "Autorizar" explícito (o "Cancelar", que vuelve a Claude con `access_denied`).
+  qué se está concediendo (solo lectura; desde HU-12.3, además, un tilde opcional para
+  crear y editar) y a qué host se vuelve, y exigir un "Autorizar" explícito (o
+  "Cancelar", que vuelve a Claude con `access_denied`).
   Tras el login, el backend (`POST /api/auth/mcp/authorize`) **re-valida todos los
   parámetros** (viajan por el navegador), verifica el token de Google, exige
   `email_verified` y aplica `ALLOWED_EMAILS` igual que `/api/auth/login`. Solo
@@ -986,13 +987,62 @@ vive en el panel derecho de Itinerario:
   ninguna escribe) y pruebas de mutación de los controles de allowlist (rompiéndolos
   a propósito, los tests fallan como corresponde).
 
-### HU-12.3 — Herramientas MCP de acción 🔜
-**Como** viajero, **quiero** pedirle a Claude que cree o edite actividades, gastos y lugares, **para** planificar sin abrir la app.
+### HU-12.3 — Herramientas MCP de acción (crear/editar) ✅
+**Como** viajero, **quiero** crear actividades, registrar gastos y agregar lugares por lenguaje natural, **para** cargar cosas rápido sin abrir la app.
 
-- Fuera de esta entrega, a propósito: se implementa una vez que HU-12.1/12.2 estén
-  probadas en uso real. Requerirá un scope propio (`mcp:write`, distinto de
-  `mcp:read`) y confirmación explícita del viajero por herramienta; los tokens
-  actuales no lo incluyen.
+Es la primera vez que un modelo de lenguaje puede **escribir** datos por interpretación de texto libre, así que el diseño es deliberadamente angosto: **una entidad por llamada** y **cero borrados**.
+
+- **Cuatro herramientas** (`backend/src/mcp/writeTools.js`), sin `readOnlyHint` y con `destructiveHint: false`
+  para que el cliente decida si pide confirmación: `create_activity`, `update_activity`,
+  `create_expense`, `create_poi`. **No existe ninguna herramienta de eliminación** (ni de actividades,
+  gastos, lugares o viajes) y ninguna modifica más de una entidad por llamada (no hay "cargar todo el día").
+- **Permiso aparte: scope `mcp:write`.** Las herramientas de escritura **solo existen** (no se listan) para
+  tokens que lo tengan, y cada una vuelve a chequearlo al ejecutarse. Se otorga únicamente si el cliente lo
+  pide **y** el viajero marca en la pantalla de consentimiento *"Permitir también crear y editar"* (destildado
+  por defecto; el texto aclara además *"Nunca podrá eliminar nada"*). Sin marcarlo, o para conexiones ya
+  existentes, todo sigue siendo solo lectura hasta reconectar. El refresh conserva el scope y no puede ampliarlo.
+  > _Nota de diseño: la spec de HU-12.3 no mencionaba el scope y pedía no tocar el flujo OAuth, pero la spec
+  > original de la Épica 12 exigía un scope propio y los tokens vigentes habían consentido "solo lectura"; se
+  > tocó solo lo mínimo (scope + tilde + texto). No cambian PKCE, códigos, tokens, allowlist ni revocación._
+- **Misma lógica que la web, nunca reimplementada.** Las validaciones, la resolución de conflictos horarios
+  (desplazamiento en cadena respetando `is_fixed`), el default `is_paid: true`, la moneda del viaje y la
+  validación de categorías se extrajeron de los endpoints REST a `backend/src/lib/mutations.js`; los
+  endpoints REST y las tools llaman a las mismas funciones (`createActivity`, `updateActivity`,
+  `createExpense`, `createPoi`), con los mismos mensajes.
+- **`create_activity` / `update_activity`:** cuando el horario se superpone con actividades posteriores
+  movibles se las corre automáticamente y la respuesta trae `adjusted_activities` (id, título, horario
+  anterior y nuevo) más una nota para que el asistente se lo cuente a la persona. Cuando el choque **no** se
+  puede resolver (habría que mover una inamovible, o se superpone con una que empieza antes) **no se aplica
+  nada** y devuelve un error estructurado `schedule_conflict` con el `reason` y la actividad que bloquea
+  (`blocked_by`), con la instrucción de no inventar soluciones. Las horas se dan como `start_time` +
+  `end_time` **o** `duration_minutes` (nunca ambos). En `update_activity`, una edición parcial de horario
+  completa lo que falta con los valores actuales para que el chequeo de conflictos **siempre** corra.
+  `poi_id` (create) vincula un lugar del mismo viaje en la misma transacción; `is_fixed`/`tentative` son opcionales.
+- **`create_expense`:** `category` es el nombre de una categoría de presupuesto del viaje (sin distinguir
+  mayúsculas ni acentos; si no hay una única coincidencia se rechaza listando las disponibles), `is_paid` por
+  defecto `true`, moneda del viaje y, si no se indica fecha, **hoy en la zona horaria del viaje**
+  (`activity_id` opcional, debe ser del mismo viaje).
+- **`create_poi`:** `category` debe coincidir **exactamente** (sin acentos/mayúsculas) con una de las 7
+  categorías válidas; si no, se rechaza mostrando la lista **antes** de geocodificar o tocar la base. La
+  dirección se geocodifica en el servidor con Nominatim (mismo servicio y parámetros que `PoiForm`, ahora con
+  `User-Agent` identificatorio en `backend/src/lib/geocode.js`, porque el navegador no interviene) y la
+  respuesta devuelve `geocoded.matched_address` para que el asistente confirme que es el lugar correcto. Si no
+  se encuentra la dirección, no se guarda nada. La foto por lugar sigue siendo best-effort.
+- **Alcance del usuario:** como en el resto de la app no hay dueño por viaje — toda persona habilitada
+  (Épica 7) opera sobre todos los viajes, y la allowlist se revalida en cada request (sacar un correo corta
+  también la escritura de inmediato). Lo que sí se verifica son las **relaciones entre ids** que un modelo
+  puede mezclar: el día, el lugar y la actividad recibidos deben pertenecer al viaje indicado.
+- **Registro de auditoría** en los logs del servidor: `MCP write | <tool> | <email> | <entidad>=<id>` (sin
+  contenido).
+- **Campos que difieren de la spec original** (el modelo de datos real es otro): la actividad usa `title` (no
+  `name`), no tiene `category` (la categoría vive en el lugar vinculado, vía `poi_id`) y guarda
+  `duration_minutes` (por eso `end_time` se convierte); el gasto necesita `expense_date` y su categoría es de
+  presupuesto del viaje.
+- Verificado con 106 comprobaciones e2e (scopes y consentimiento, visibilidad de tools, las cuatro
+  herramientas incluyendo conflicto resoluble/bloqueado por inamovible, ids de otro viaje, geocodificación real,
+  categoría inválida, ausencia de borrados y de escrituras múltiples, refresh, allowlist, y regresión de los
+  endpoints REST refactorizados) y pruebas de mutación de ambos candados del scope y del tilde del consentimiento
+  (rompiéndolos a propósito, los tests fallan).
 
 ### HU-12.4 — Conectar también desde ChatGPT (registro dinámico de clientes) ✅
 **Como** viajero, **quiero** conectar el mismo MCP desde ChatGPT, **para** consultar mis viajes desde cualquiera de los dos asistentes.

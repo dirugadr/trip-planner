@@ -6,7 +6,8 @@ export const MCP_SCOPE = 'mcp:read';
 
 // Create/edit access (HU-12.3): create_activity, update_activity, create_expense,
 // create_poi. Never implied by mcp:read, only issued when the traveler ticks it
-// on the consent screen, and never covers deletion (there are no delete tools).
+// on the consent screen (whether or not the client asked for it), and never
+// covers deletion (there are no delete tools).
 export const MCP_WRITE_SCOPE = 'mcp:write';
 
 export const hasWriteScope = (scopes) => Array.isArray(scopes) && scopes.includes(MCP_WRITE_SCOPE);

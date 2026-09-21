@@ -62,12 +62,14 @@ export function createMcpAuthorizeRouter({ verifyGoogle = verifyGoogleToken } = 
       return res.status(403).json({ success: false, error: 'Tu cuenta no está habilitada para usar esta app' });
     }
 
-    // Write access (HU-12.3) needs BOTH the client asking for it and the traveler
-    // explicitly ticking the box on the consent screen. Anything else is read-only.
-    const scope =
-      request.scopes.includes(MCP_WRITE_SCOPE) && body.grant_write === true
-        ? `${MCP_SCOPE} ${MCP_WRITE_SCOPE}`
-        : MCP_SCOPE;
+    // Write access (HU-12.3) is granted only when the traveler explicitly ticks the
+    // box on the consent screen (strictly boolean true; unticked by default).
+    // It does NOT depend on the client having requested mcp:write: real clients
+    // (Claude) don't ask for it, and RFC 6749 §3.3 lets the server issue a
+    // different scope than requested as long as the token response says so —
+    // which it does (`scope`). The consent screen names the host the approval
+    // returns to, and read-only remains the default for every connection.
+    const scope = body.grant_write === true ? `${MCP_SCOPE} ${MCP_WRITE_SCOPE}` : MCP_SCOPE;
 
     const code = await issueAuthorizationCode({
       clientId: request.client.client_id,

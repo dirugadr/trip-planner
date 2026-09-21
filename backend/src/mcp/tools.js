@@ -12,10 +12,12 @@ import Document from '../models/Document.js';
 import InterestLink from '../models/InterestLink.js';
 import { parseHM, minutesToHM } from '../models/Activity.js';
 import { loadActivityDetails } from '../lib/activityDetails.js';
+import { registerWriteTools } from './writeTools.js';
 
 // Épica 12 / HU-12.2 — read-only tools. Every handler is a thin wrapper over
 // the same model/lib functions the REST endpoints use; nothing here writes,
-// and nothing makes an HTTP call back to this server.
+// and nothing makes an HTTP call back to this server. The create/edit tools of
+// HU-12.3 live in writeTools.js and are only registered for mcp:write tokens.
 //
 // Access model: like the web app, any allowlisted user sees every trip (there
 // is no per-trip owner). requireBearerAuth + verifyAccessToken already gated
@@ -46,7 +48,7 @@ function tripTool(handler) {
   };
 }
 
-export function createMcpServer() {
+export function createMcpServer({ canWrite = false } = {}) {
   const server = new McpServer({ name: 'trip-planner', version: '1.0.0' });
 
   server.registerTool(
@@ -315,6 +317,8 @@ export function createMcpServer() {
       });
     })
   );
+
+  if (canWrite) registerWriteTools(server);
 
   return server;
 }

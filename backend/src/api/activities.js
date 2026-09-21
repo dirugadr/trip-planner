@@ -3,58 +3,27 @@ import { serverError } from '../lib/http.js';
 import Activity from '../models/Activity.js';
 import ActivityPoi from '../models/ActivityPoi.js';
 import Poi from '../models/Poi.js';
-import { validatePoiPayload } from './pois.js';
 import { dbBatch } from '../db/database.js';
-import { sanitizeHttpUrl } from '../lib/url.js';
+import { validatePoiPayload, createActivity, updateActivity } from '../lib/mutations.js';
 
 const router = express.Router();
 
 // POST /api/activities - Create activity
+// (validation + conflict resolution live in lib/mutations.js, shared with the MCP tools)
 router.post('/', async (req, res) => {
   try {
-    const { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, tentative, is_fixed } = req.body;
-
-    if (!day_id || !title) {
-      return res.status(400).json({
+    const result = await createActivity(req.body);
+    if (!result.ok) {
+      return res.status(result.status).json({
         success: false,
-        error: 'day_id and title are required'
+        error: result.error,
+        ...(result.warning && { warning: true })
       });
     }
 
-    const url = 'url' in req.body ? sanitizeHttpUrl(req.body.url) : undefined;
-    if (req.body.url && !url) {
-      return res.status(400).json({ success: false, error: 'El enlace debe empezar con http:// o https://' });
-    }
-
-    // Tentative plans don't need to be conflict-free. A real conflict is
-    // first tried against resolveScheduleShift (Ajuste 4): resolved
-    // automatically by cascading later activities forward unless that would
-    // move an "inamovible" one, in which case it's the same hard block as before.
-    let shifts = [];
-    if (!tentative && start_time && duration_minutes) {
-      const resolved = await Activity.resolveScheduleShift(day_id, { startTime: start_time, durationMinutes: duration_minutes });
-      if (resolved.blocked) {
-        return res.status(400).json({
-          success: false,
-          error: 'Time conflict: activity overlaps with existing activities',
-          warning: true
-        });
-      }
-      shifts = resolved.shifts;
-    }
-
-    const row = Activity.rowFor(
-      { day_id, title, description, start_time, duration_minutes, location_name, latitude, longitude, url, tentative, is_fixed },
-      await Activity.nextSortOrder(day_id)
-    );
-    await dbBatch([
-      Activity.insertStmt(row),
-      ...shifts.map((s) => Activity.updateStmt(s.id, { start_time: s.start_time })),
-    ]);
-
     res.status(201).json({
       success: true,
-      data: { ...row, ...(shifts.length > 0 && { shifted_count: shifts.length }) }
+      data: { ...result.row, ...(result.shifts.length > 0 && { shifted_count: result.shifts.length }) }
     });
   } catch (error) {
     serverError(res, error);
@@ -90,61 +59,18 @@ router.get('/:id', async (req, res) => {
 // PUT /api/activities/:id - Update activity
 router.put('/:id', async (req, res) => {
   try {
-    const activity = await Activity.findById(req.params.id);
-
-    if (!activity) {
-      return res.status(404).json({
+    const result = await updateActivity(req.params.id, req.body);
+    if (!result.ok) {
+      return res.status(result.status).json({
         success: false,
-        error: 'Activity not found'
-      });
-    }
-
-    if ('tentative' in req.body) req.body.tentative = req.body.tentative ? 1 : 0;
-    if ('is_fixed' in req.body) req.body.is_fixed = req.body.is_fixed ? 1 : 0;
-    const isTentative = 'tentative' in req.body ? req.body.tentative : activity.tentative;
-
-    if ('url' in req.body) {
-      const clean = sanitizeHttpUrl(req.body.url);
-      if (req.body.url && !clean) {
-        return res.status(400).json({ success: false, error: 'El enlace debe empezar con http:// o https://' });
-      }
-      req.body.url = clean;
-    }
-
-    // Tentative plans don't need to be conflict-free. See the POST handler's
-    // comment above — same resolveScheduleShift-based resolution (Ajuste 4).
-    let shifts = [];
-    if (!isTentative && req.body.start_time && req.body.duration_minutes) {
-      const resolved = await Activity.resolveScheduleShift(activity.day_id, {
-        startTime: req.body.start_time,
-        durationMinutes: req.body.duration_minutes,
-        excludeId: activity.id,
-      });
-      if (resolved.blocked) {
-        return res.status(400).json({
-          success: false,
-          error: 'Time conflict: activity overlaps with existing activities',
-          warning: true
-        });
-      }
-      shifts = resolved.shifts;
-    }
-
-    await dbBatch([
-      Activity.updateStmt(req.params.id, req.body),
-      ...shifts.map((s) => Activity.updateStmt(s.id, { start_time: s.start_time })),
-    ]);
-    const updated = await Activity.findById(req.params.id);
-    if (!updated) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to update activity'
+        error: result.error,
+        ...(result.warning && { warning: true })
       });
     }
 
     res.json({
       success: true,
-      data: { ...updated, ...(shifts.length > 0 && { shifted_count: shifts.length }) }
+      data: { ...result.updated, ...(result.shifts.length > 0 && { shifted_count: result.shifts.length }) }
     });
   } catch (error) {
     serverError(res, error);

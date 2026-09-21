@@ -1,38 +1,10 @@
 import express from 'express';
 import { serverError } from '../lib/http.js';
-import Trip from '../models/Trip.js';
 import Expense from '../models/Expense.js';
 import BudgetCategory from '../models/BudgetCategory.js';
+import { validateExpensePayload, createExpense } from '../lib/mutations.js';
 
 const router = express.Router();
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-async function validatePayload(body, { partial = false } = {}) {
-  const errors = [];
-  const out = {};
-
-  if (!partial || 'amount' in body) {
-    const amount = Number(body.amount);
-    if (Number.isNaN(amount) || amount <= 0) errors.push('amount debe ser un número mayor a 0');
-    else out.amount = amount;
-  }
-  if (!partial || 'expense_date' in body) {
-    if (!DATE_RE.test(body.expense_date || '')) errors.push('expense_date debe tener formato YYYY-MM-DD');
-    else out.expense_date = body.expense_date;
-  }
-  if (!partial || 'category_id' in body) {
-    if (!body.category_id) errors.push('category_id es obligatorio');
-    else out.category_id = body.category_id;
-  }
-  if ('description' in body) out.description = body.description?.trim() || null;
-  if ('payment_method_id' in body) out.payment_method_id = body.payment_method_id || null;
-  if ('activity_id' in body) out.activity_id = body.activity_id || null;
-  if ('currency_code' in body && body.currency_code) out.currency_code = body.currency_code;
-  if ('is_paid' in body) out.is_paid = body.is_paid ? 1 : 0;
-
-  return { errors, out };
-}
 
 // GET /api/expenses?trip_id=... - List a trip's expenses
 router.get('/', async (req, res) => {
@@ -48,36 +20,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/expenses - Record an expense
+// POST /api/expenses - Record an expense (logic shared with the MCP tools: lib/mutations.js)
 router.post('/', async (req, res) => {
   try {
-    const { trip_id } = req.body;
-    if (!trip_id) {
-      return res.status(400).json({ success: false, error: 'trip_id es obligatorio' });
-    }
-
-    const trip = await Trip.findById(trip_id);
-    if (!trip) {
-      return res.status(404).json({ success: false, error: 'Trip not found' });
-    }
-
-    const { errors, out } = await validatePayload(req.body);
-    if (errors.length) {
-      return res.status(400).json({ success: false, error: errors.join('. ') });
-    }
-
-    const category = await BudgetCategory.findById(out.category_id);
-    if (!category || category.trip_id !== trip_id) {
-      return res.status(400).json({ success: false, error: 'La categoría no pertenece a este viaje' });
-    }
-
-    const expense = await Expense.create({
-      trip_id,
-      ...out,
-      currency_code: out.currency_code || trip.currency_code || 'USD'
-    });
-
-    res.status(201).json({ success: true, data: expense });
+    const result = await createExpense(req.body);
+    if (!result.ok) return res.status(result.status).json({ success: false, error: result.error });
+    res.status(201).json({ success: true, data: result.expense });
   } catch (error) {
     serverError(res, error);
   }
@@ -91,7 +39,7 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Expense not found' });
     }
 
-    const { errors, out } = await validatePayload(req.body, { partial: true });
+    const { errors, out } = await validateExpensePayload(req.body, { partial: true });
     if (errors.length) {
       return res.status(400).json({ success: false, error: errors.join('. ') });
     }

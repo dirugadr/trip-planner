@@ -3,6 +3,7 @@ import { mcpConfigError } from '../config/index.js';
 import { verifyGoogleToken, isEmailAllowed } from '../lib/auth.js';
 import { OAuthError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { validateAuthorizeRequest, issueAuthorizationCode, withIssuer } from './oauthProvider.js';
+import { MCP_SCOPE, MCP_WRITE_SCOPE } from './scopes.js';
 
 /**
  * Second half of the authorization-code flow. /oauth/authorize (SDK) sends the
@@ -61,15 +62,23 @@ export function createMcpAuthorizeRouter({ verifyGoogle = verifyGoogleToken } = 
       return res.status(403).json({ success: false, error: 'Tu cuenta no está habilitada para usar esta app' });
     }
 
+    // Write access (HU-12.3) needs BOTH the client asking for it and the traveler
+    // explicitly ticking the box on the consent screen. Anything else is read-only.
+    const scope =
+      request.scopes.includes(MCP_WRITE_SCOPE) && body.grant_write === true
+        ? `${MCP_SCOPE} ${MCP_WRITE_SCOPE}`
+        : MCP_SCOPE;
+
     const code = await issueAuthorizationCode({
       clientId: request.client.client_id,
       email: gUser.email,
       codeChallenge: request.codeChallenge,
       redirectUri: request.redirectUri,
-      resource: request.resource
+      resource: request.resource,
+      scope
     });
 
-    res.json({ success: true, data: { redirect_url: redirectTo({ code }), email: gUser.email } });
+    res.json({ success: true, data: { redirect_url: redirectTo({ code }), email: gUser.email, scope } });
   });
 
   return router;

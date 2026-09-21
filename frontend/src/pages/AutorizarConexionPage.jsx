@@ -45,6 +45,11 @@ export default function AutorizarConexionPage() {
     return out;
   }, [search]);
 
+  // HU-12.3: the client may also ask for write access (scope mcp:write). It is only
+  // granted if the traveler ticks the box — never by default, never implied.
+  const requestsWrite = (params.scope || '').split(' ').includes('mcp:write');
+  const [grantWrite, setGrantWrite] = useState(false);
+
   const [credential, setCredential] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -83,16 +88,40 @@ export default function AutorizarConexionPage() {
             </p>
             <ul className="text-[13px] mb-4 list-disc pl-5 space-y-1">
               <li>
-                Podrá <strong>solo consultar</strong> tus viajes: itinerarios, presupuesto y gastos, alojamientos, lugares,
+                Podrá <strong>consultar</strong> tus viajes: itinerarios, presupuesto y gastos, alojamientos, lugares,
                 documentos (sin descargarlos) y links.
               </li>
+              {grantWrite ? (
+                <li>
+                  Además podrá <strong>crear y editar</strong> actividades, gastos y lugares (de a una cosa por vez).
+                </li>
+              ) : (
+                <li>
+                  <strong>No podrá</strong> crear ni editar nada.
+                </li>
+              )}
               <li>
-                <strong>No podrá</strong> crear, editar ni eliminar nada.
+                <strong>Nunca podrá eliminar</strong> nada.
               </li>
               <li>
                 Al aprobar, volvés a <strong>{hostOf(params.redirect_uri)}</strong>. Podés revocar el acceso cuando quieras.
               </li>
             </ul>
+            {requestsWrite && (
+              <label className="flex items-start gap-2 text-[13px] mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={grantWrite}
+                  disabled={busy}
+                  onChange={(e) => setGrantWrite(e.target.checked)}
+                />
+                <span>
+                  Permitir también <strong>crear y editar</strong> (actividades, gastos y lugares). Sin marcar, la conexión
+                  queda de solo lectura.
+                </span>
+              </label>
+            )}
             <p className="muted text-[12px] mb-4">Si no iniciaste esta conexión vos, cerrá esta ventana.</p>
 
             {error && <div className="alert alert-error">{error}</div>}
@@ -127,7 +156,7 @@ export default function AutorizarConexionPage() {
                   <button className="btn btn-secondary" onClick={() => finish(() => denyMcpAuthorization(params))}>
                     Cancelar
                   </button>
-                  <button className="btn" onClick={() => finish(() => approveMcpAuthorization(params, credential))}>
+                  <button className="btn" onClick={() => finish(() => approveMcpAuthorization({ ...params, grant_write: requestsWrite && grantWrite }, credential))}>
                     Autorizar
                   </button>
                 </div>

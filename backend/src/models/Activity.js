@@ -189,7 +189,7 @@ export class Activity {
    *     traveler just typed, not something to move automatically; or
    *   - resolving the chain would require moving an "inamovible" activity.
    *
-   * @returns {Promise<{blocked:boolean, shifts:{id:string,start_time:string}[]}>}
+   * @returns {Promise<{blocked:boolean, shifts:{id:string,title:string,previous_start_time:string,start_time:string}[], reason?:string, blocker?:object}>}
    */
   static async resolveScheduleShift(dayId, { startTime, durationMinutes, excludeId = null }) {
     if (!startTime || !durationMinutes) return { blocked: false, shifts: [] };
@@ -198,7 +198,7 @@ export class Activity {
     const end = start + durationMinutes;
 
     const rows = await dbAll(
-      `SELECT id, start_time, duration_minutes, is_fixed FROM ${TABLE}
+      `SELECT id, title, start_time, duration_minutes, is_fixed FROM ${TABLE}
        WHERE day_id = ?
        AND deleted_at IS NULL
        AND tentative = 0
@@ -208,13 +208,20 @@ export class Activity {
       excludeId ? [dayId, excludeId] : [dayId]
     );
     const others = rows
-      .map((r) => ({ id: r.id, start: parseHM(r.start_time), duration: r.duration_minutes, isFixed: !!r.is_fixed }))
+      .map((r) => ({ id: r.id, title: r.title, startTime: r.start_time, start: parseHM(r.start_time), duration: r.duration_minutes, isFixed: !!r.is_fixed }))
       .filter((o) => o.start != null);
 
-    const blockedByEarlier = others.some(
-      (o) => o.start < start && rangesOverlap(start, end, o.start, o.start + o.duration)
-    );
-    if (blockedByEarlier) return { blocked: true, shifts: [] };
+    // `blocker` names the activity that makes this impossible, so callers that
+    // talk to a person (the MCP tools) can explain it instead of guessing.
+    const blocker = (o, reason) => ({
+      blocked: true,
+      shifts: [],
+      reason,
+      blocker: { id: o.id, title: o.title, start_time: o.startTime, end_time: minutesToHM(o.start + o.duration), is_fixed: o.isFixed },
+    });
+
+    const earlier = others.find((o) => o.start < start && rangesOverlap(start, end, o.start, o.start + o.duration));
+    if (earlier) return blocker(earlier, 'overlaps_earlier_activity');
 
     const later = others.filter((o) => o.start >= start).sort((a, b) => a.start - b.start);
 
@@ -222,8 +229,8 @@ export class Activity {
     const shifts = [];
     for (const o of later) {
       if (o.start < cursorEnd) {
-        if (o.isFixed) return { blocked: true, shifts: [] };
-        shifts.push({ id: o.id, start_time: minutesToHM(cursorEnd) });
+        if (o.isFixed) return blocker(o, 'would_move_fixed_activity');
+        shifts.push({ id: o.id, title: o.title, previous_start_time: o.startTime, start_time: minutesToHM(cursorEnd) });
         cursorEnd += o.duration;
       } else {
         cursorEnd = o.start + o.duration;

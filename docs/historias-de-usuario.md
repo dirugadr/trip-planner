@@ -1048,6 +1048,8 @@ Es la primera vez que un modelo de lenguaje puede **escribir** datos por interpr
   categoría inválida, ausencia de borrados y de escrituras múltiples, refresh, allowlist, y regresión de los
   endpoints REST refactorizados) y pruebas de mutación de ambos candados del scope y del tilde del consentimiento
   (rompiéndolos a propósito, los tests fallan).
+  > _Probado 2026-09-21 desde Claude real: tras reconectar y marcar "Permitir también crear y editar", la
+  > escritura funciona de punta a punta._
 
 ### HU-12.4 — Conectar también desde ChatGPT (registro dinámico de clientes) ✅
 **Como** viajero, **quiero** conectar el mismo MCP desde ChatGPT, **para** consultar mis viajes desde cualquiera de los dos asistentes.
